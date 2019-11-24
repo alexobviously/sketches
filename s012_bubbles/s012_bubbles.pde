@@ -76,7 +76,7 @@ void draw()
     fast_bubbles.get(i).update();
   }
   if(random(1000)>990) bubble_rate++;
-  println(bubbles.size()+" "+pebbles.size()+" "+fast_bubbles.size());
+  //println(bubbles.size()+" "+pebbles.size()+" "+fast_bubbles.size());
   
 }
 
