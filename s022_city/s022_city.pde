@@ -1,3 +1,6 @@
+// made by alex
+// iamalexbaker@gmail.com
+
 class unit{
   PVector pos;
   color col;

@@ -16,22 +16,26 @@ void setup() {
   float aa = random(0.5);
   float b = random(10);
   color c = dullColour(40,10,60);
+  color cc = dullColour(80,50,100);
+  float ff = random(0.01, 9);
+  float fg = random(0.01, 0.07);
+  float[] cons = {150, 250};
   
   for(float t = 0; t < 1000; t += 1){
-    r = sqrt(2*pow(a,2)*cos(2*t)*sin(3*t)+pow(tan(t),2));
-    //r = a * cos(t * k + yo);
-    float x = r * cos(t);
-    float y = r * tan(t);
+    r = sin(t*ff)/4 * 600 + a*cos(t*k+yo) - fg*tan(t/yo);
+    //r = constrain(cos(t)*ff + fg, 65, 640);
+    float x = r * sin(t);
+    float y = r * cos(r);
     ellipseMode(CENTER);
     noStroke();
-    fill(c,120);
+    fill(lerpColor(c,cc,cos(t)/tan(t)),120);
     ellipse(x, y, 4, 4);
     pushMatrix();
     translate(x,y);
     for(float u = 0; u < 1000; u += 15){
       float rr = u * aa + b;
-      float xx = (rr * cos(u));
-      float yy = rr * sin(u);
+      float xx = (rr * tan(u)); 
+      float yy = (rr*sin(u));
       ellipse(xx,yy,2,2);
       println(t+" "+u);
     }

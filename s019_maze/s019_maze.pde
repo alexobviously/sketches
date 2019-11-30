@@ -178,7 +178,7 @@ class hit {
 void setup() {
   size(800, 800);
   background(bg);
-  strokeWeight(1);
+  strokeWeight(4);
   do_draw = true;
   shape_angle = TWO_PI/shape;
   offset_angle = random(TWO_PI);

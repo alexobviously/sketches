@@ -1,3 +1,5 @@
+// made by alex
+// iamalexbaker@gmail.com
 
 float colour_spread = 100;
 float circle_size = 1;

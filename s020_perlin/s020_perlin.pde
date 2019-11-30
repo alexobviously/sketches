@@ -4,6 +4,8 @@ float dist;
 float angle;
 float phase = 0;
 float m = 2;
+color[] = new color[2];
+
 void setup(){
   size(800,800);
   dist = width/div;
@@ -28,6 +30,7 @@ void draw(){
   for(int i = -div/4; i < div + div/4; i++){
     for(int j = -div/4; j < div + div/4; j++){
       float nv = noise(lerp(i,i*m, sin(phase)),lerp(j,j*m, sin(phase)));
+      fill(
       ellipse(i*dist, j*dist, nv*50, nv*50);
     }
   }

@@ -4,7 +4,7 @@
 // https://en.wikipedia.org/wiki/Collatz_conjecture
 
 int do_draw = 1;
-float[] len = {5, 5};
+float[] len = {5, 15};
 float angle = PI/32;
 int start = 10000000;
 int num = 8000;
