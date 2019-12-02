@@ -5,12 +5,12 @@
 // https://en.wikipedia.org/wiki/Collatz_conjecture
 
 int do_draw = 1;
-float[] len = {30, 30};
+float[] len = {10, 10};
 float[] angle = {-PI/2, PI/2, 0};
 int[] start = {1000000, 2000000, 0};
 int[] num = {10000, 20000, 0};
 float[] size = {1, 5, 0};
-float[] weights = {1,10,0,500}; // probability of {line, circle, square, blank}
+float[] weights = {1,10,0,50}; // probability of {line, circle, square, blank}
 PVector origin;
 int nc = 2;
 color[] c = new color[nc];
@@ -33,7 +33,7 @@ void setup() {
 
 void draw() {
   if (do_draw == 0) return;
-  background(230);
+  background(50);
   stroke(255,10);
   fill(255,10);
   cycle(start[2], start[2]+num[2], angle[2], 0, origin);
