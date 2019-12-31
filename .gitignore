@@ -13,6 +13,5 @@ hole-*
 n-*.png
 triangularity-*
 cog-*.png
-qs-*.png
-rd-*.png
-ripple*.png
+s03*/*.png
+s03*/*.mp4

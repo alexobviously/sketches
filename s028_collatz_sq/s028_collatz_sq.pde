@@ -115,6 +115,7 @@ color dullColour(float spread)
   return col;
 }
 
+// function to randomly select an array index from an array of weights
 int selectWeighted(float[] w){
   int total = 0;
   for(float ww: w) total += ww;
