@@ -69,7 +69,7 @@ class ray {
       return new PVector(hx, hy);
     } else return null;
   }
-  hit multicast(ArrayList<boundary> walls)
+  hit multicast(ArrayList<boundary> walls, boundary lastHit)
   {
     float record = Float.POSITIVE_INFINITY;
     PVector h;
@@ -78,6 +78,7 @@ class ray {
     boundary b = walls.get(1);
     // find nearest boundary, so ray doesn't hit multiple walls
     for(boundary wall : walls){
+      if(wall == lastHit && !buggy_walls) continue; // IMPORTANT - this stops the bug where rays can pass through walls
       h = cast(wall);
       if(h != null){
         d = pos.dist(h);
@@ -92,9 +93,9 @@ class ray {
       return new hit(pt, b);
     } else return null;
   }
-  void recursivecast(ArrayList<boundary> walls)
+  void recursivecast(ArrayList<boundary> walls, boundary lastHit)
   {
-    hit h = multicast(walls);
+    hit h = multicast(walls, lastHit);
     if(h != null)
     {
       show(h); // show this ray
@@ -103,7 +104,7 @@ class ray {
       // reduce power, cast next ray (reflection) if it still has power
       if(power-power_drop > 0){
         ray r = new ray(h.p.x,h.p.y,ref,power-power_drop,power_drop, colour, show_mode);
-        r.recursivecast(walls);
+        r.recursivecast(walls, h.b);
       }
     }
   }
@@ -141,6 +142,7 @@ int show_boundaries = 0;
 int hit_mode = 2; // 0 = lines, 1 = circles, 2 = both
 float circle_size[] = {4,15};
 float c_size = 15;
+boolean buggy_walls = false;
 
 void setup() {
   size(800, 800);
@@ -210,7 +212,7 @@ void draw() {
   }
   
   for (ray r : rays) {
-    r.recursivecast(walls);
+    r.recursivecast(walls, null);
   }
   do_draw = 0;
 }

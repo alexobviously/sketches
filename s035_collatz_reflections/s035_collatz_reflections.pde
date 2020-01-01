@@ -269,7 +269,7 @@ class ray {
     
     // find nearest boundary, so ray doesn't hit multiple walls
     for(boundary wall : walls){
-      if(wall == lastHit) continue;
+      if(wall == lastHit) continue; // IMPORTANT - this stops the bug where rays can pass through walls
       h = cast(wall);
       if(h != null){
         d = pos.dist(h);
