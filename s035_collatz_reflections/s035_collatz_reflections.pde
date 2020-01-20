@@ -5,20 +5,21 @@
 // still a WIP - lots of things haven't been implemented yet
 
 // raycast vars
-float c_size = 15;
+float c_size = 1;
 int show_boundaries = 0;
 int[] num_walls = {1,15};
 
 // collatz vars
-float[] len = {14,18};
+float[] len = {12,19};
 float[] angle = {-PI/2, PI/2, 0};
 int[] start = {1000000, 2000000, 0};
 int[] num = {100, 3000, 0};
 float[] size = {1, 5, 0};
-float[] weights = {1,0,0,0}; // probability of {line, circle, square, blank}
+float[] weights = {2,50,1,10}; // probability of {line, circle, both, blank}
 boolean drawHairs = false; // nice with either low numbers of lines, or long scale and wide len range
 float[] hairScale = {1.2, 5.5, 0}; // multiple of the length of the main line (len variable)
 int hairColourMode = 0; // 0 = white, 1 = c[0], 2 = c[1], 3 = cc (lerp), 4 = bgc
+int numCycles = 20;
 
 // colour vars
 float[] hueRange = {0, TWO_PI};
@@ -45,18 +46,20 @@ void setup(){
   colorMode(HSB, TWO_PI, 1, 1);
   bgc = color(0, 0, 0.2); // * 0.2 and * 0.8 are both nice
   background(bgc);
-  fixedColour = color(PI, PI, PI);
-  hue = random(hueRange[0], hueRange[1]);
-  sat = random(satRange[0], satRange[1]) * TWO_PI;
-  bri = random(briRange[0], briRange[1]) * TWO_PI;
-  for(int i = 0; i < nc; i++){
-    c[i] = color(random(hueRange[0], hueRange[1]), random(satRange[0], satRange[1]) * TWO_PI, random(briRange[0], briRange[1]) * TWO_PI);
-  }
+  colourSetup();
+  originSetup();
+  wallSetup();
+}
+
+void originSetup(){
   origin = new PVector(random(width-2)+1,random(height-2)+1);
   start[2] = int(random(start[0], start[1]));
   num[2] = int(random(num[0], num[1]));
   size[2] = random(size[0], size[1]);
   angle[2] = random(angle[0], angle[1]);
+}
+
+void wallSetup(){
   walls.clear();
   
   // boundaries of screen
@@ -65,12 +68,20 @@ void setup(){
   walls.add(new boundary(0,height,width,height));
   walls.add(new boundary(width,0,width,height));
   
-  //walls.add(new boundary(0,0,550,800));
-  
   // generate boundaries
   float n_walls = random(num_walls[1]-num_walls[0])+num_walls[0];
   for (int i = 0; i < n_walls; i++) {
     walls.add(new boundary(random(width), random(height), random(width), random(height)));
+  }
+}
+
+void colourSetup(){
+  fixedColour = color(PI, PI, PI);
+  hue = random(hueRange[0], hueRange[1]);
+  sat = random(satRange[0], satRange[1]) * TWO_PI;
+  bri = random(briRange[0], briRange[1]) * TWO_PI;
+  for(int i = 0; i < nc; i++){
+    c[i] = color(random(hueRange[0], hueRange[1]), random(satRange[0], satRange[1]) * TWO_PI, random(briRange[0], briRange[1]) * TWO_PI);
   }
 }
 
@@ -83,8 +94,11 @@ void draw(){
     }
   }
   //ellipse(origin.x, origin.y, 10, 10);
-  
-  cycle(start[2], start[2]+num[2], angle[2], 0, origin);
+  for(int i = 0; i < numCycles; i++){
+    colourSetup();
+    originSetup();
+    cycle(start[2], start[2]+num[2], angle[2], 0, origin);
+  }
   do_draw = false;
 }
 
@@ -122,12 +136,12 @@ void cycle(int s, int e, float a, float r, PVector o)
           case 3: hc = cc; break;
           case 4: hc = bgc; break;
         }
-        ray _r2 = new ray(_pos.x, _pos.y, PVector.fromAngle(rot), 1, 0.01, hc, 0);
+        ray _r2 = new ray(_pos.x, _pos.y, PVector.fromAngle(rot), 1, 0.01, hc, selectWeighted(weights));
         hit h2 = _r2.multicast(walls, l * random(hairScale[0], hairScale[1]));
         _r2.show(h2);
       }
       
-      ray _ray = new ray(_pos.x, _pos.y, PVector.fromAngle(rot), 1, 0.01, cc, 0);
+      ray _ray = new ray(_pos.x, _pos.y, PVector.fromAngle(rot), 1, 0.01, cc, selectWeighted(weights));
       //line(_ray.pos.x, _ray.pos.y, _ray.pos.x + _ray.dir.x * 80, _ray.pos.y + _ray.dir.y * 80);
       
       hit h = _ray.multicast(walls, l);
