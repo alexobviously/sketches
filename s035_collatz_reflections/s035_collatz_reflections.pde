@@ -7,26 +7,34 @@
 // raycast vars
 float c_size = 1;
 int show_boundaries = 0;
-int[] num_walls = {1,15};
+int[] num_walls = {1,8};
+boolean[] symmetry = {true, true}; // simple x, y symmetry
+int startMode = 1; // 0 - random, 1 - in circle
+float spawnCircleRadius = 100;
+boolean wrapCircle = true;
+boolean hardWrap = true;
+boolean allowReturn = false;
+float wrapRadius = 250;
+float wrapStrength = 0.15;
 
 // collatz vars
-float[] len = {12,19};
+float[] len = {10, 24};
 float[] angle = {-PI/2, PI/2, 0};
 int[] start = {1000000, 2000000, 0};
 int[] num = {100, 3000, 0};
 float[] size = {1, 5, 0};
-float[] weights = {2,50,1,10}; // probability of {line, circle, both, blank}
+float[] weights = {50,5,1,10}; // probability of {line, circle, both, blank}
 boolean drawHairs = false; // nice with either low numbers of lines, or long scale and wide len range
 float[] hairScale = {1.2, 5.5, 0}; // multiple of the length of the main line (len variable)
-int hairColourMode = 0; // 0 = white, 1 = c[0], 2 = c[1], 3 = cc (lerp), 4 = bgc
-int numCycles = 20;
+int hairColourMode = 0; // 0 = white, 1 = c[0], 2 = c[1], 3 = cc (lerp), 4 = bgc, 5 = black
+int numCycles = 10;
 
 // colour vars
 float[] hueRange = {0, TWO_PI};
-float[] satRange = {0, 0.7};
-float[] briRange = {0, 0.9};
+float[] satRange = {0.2, 0.9};
+float[] briRange = {0.2, 1.0};
 float alpha = 10;
-int nc = 2;
+int nc = 4;
 color[] c = new color[nc];
 color fixedColour;
 color bgc;
@@ -34,7 +42,7 @@ float hue, sat, bri;
 
 boolean do_draw = true;
 ArrayList<boundary> walls = new ArrayList<boundary>();
-PVector origin;
+PVector origin, centre;
 
 boundary lastHit;
 
@@ -44,7 +52,7 @@ void setup(){
   nnn = 0;
   lastHit = null;
   colorMode(HSB, TWO_PI, 1, 1);
-  bgc = color(0, 0, 0.2); // * 0.2 and * 0.8 are both nice
+  bgc = color(0, 0, 0.8); // * 0.2 and * 0.8 are both nice
   background(bgc);
   colourSetup();
   originSetup();
@@ -52,7 +60,14 @@ void setup(){
 }
 
 void originSetup(){
+  centre = new PVector(width/2, height/2);
   origin = new PVector(random(width-2)+1,random(height-2)+1);
+  if(startMode == 1){
+    float r = random(spawnCircleRadius);
+    float t = random(TWO_PI);
+    origin.x = r * cos(t) + width/2;
+    origin.y = r * sin(t) + height/2;
+  }
   start[2] = int(random(start[0], start[1]));
   num[2] = int(random(num[0], num[1]));
   size[2] = random(size[0], size[1]);
@@ -78,10 +93,10 @@ void wallSetup(){
 void colourSetup(){
   fixedColour = color(PI, PI, PI);
   hue = random(hueRange[0], hueRange[1]);
-  sat = random(satRange[0], satRange[1]) * TWO_PI;
-  bri = random(briRange[0], briRange[1]) * TWO_PI;
+  sat = random(satRange[0], satRange[1]);
+  bri = random(briRange[0], briRange[1]);
   for(int i = 0; i < nc; i++){
-    c[i] = color(random(hueRange[0], hueRange[1]), random(satRange[0], satRange[1]) * TWO_PI, random(briRange[0], briRange[1]) * TWO_PI);
+    c[i] = color(random(hueRange[0], hueRange[1]), random(satRange[0], satRange[1]), random(briRange[0], briRange[1]));
   }
 }
 
@@ -135,6 +150,7 @@ void cycle(int s, int e, float a, float r, PVector o)
           case 2: hc = c[1]; break;
           case 3: hc = cc; break;
           case 4: hc = bgc; break;
+          case 5: hc = color(0, 0, 0); break;
         }
         ray _r2 = new ray(_pos.x, _pos.y, PVector.fromAngle(rot), 1, 0.01, hc, selectWeighted(weights));
         hit h2 = _r2.multicast(walls, l * random(hairScale[0], hairScale[1]));
@@ -154,11 +170,14 @@ void cycle(int s, int e, float a, float r, PVector o)
         }
         else{
           lastHit = null;
-          long value = seq.get(j);
-          if (value % 2 == 0) {
-            rot += a;
-          } else {
-            rot -= a;
+          if(h.wrapped) rot = h.facing;
+          if(!h.wrapped || !hardWrap){
+            long value = seq.get(j);
+            if (value % 2 == 0) {
+              rot += a;
+            } else {
+              rot -= a;
+            }
           }
         }
       }
@@ -240,13 +259,27 @@ class ray {
   void show(hit h) {
     if(show_mode == 0 || show_mode == 2){
       stroke(colour, alpha);
-      line(pos.x, pos.y, h.p.x, h.p.y);
+      symmLine(pos.x, pos.y, h.p.x, h.p.y);
     }
     if(show_mode == 1 || show_mode == 2){
       noStroke();
       fill(colour, alpha);
-      ellipse(h.p.x, h.p.y, c_size*power, c_size*power);
+      symmEllipse(h.p.x, h.p.y);
     }
+  }
+  
+  void symmLine(float x1, float y1, float x2, float y2){
+    line(x1, y1, x2, y2);
+    if(symmetry[0]) line(x1, height - y1, x2, height - y2);
+    if(symmetry[1]) line(width - x1, y1, width - x2, y2);
+    if(symmetry[0] && symmetry[1]) line(width - x1, height - y1, width - x2, height - y2);
+  }
+  
+  void symmEllipse(float x, float y){
+    ellipse(x, y, c_size * power, c_size * power);
+    if(symmetry[0]) ellipse(x, height - y, c_size * power, c_size * power);
+    if(symmetry[1]) ellipse(width - x, y, c_size * power, c_size * power);
+    if(symmetry[0] && symmetry[1]) ellipse(width - x, height - y, c_size * power, c_size * power);
   }
 
   PVector cast(boundary b) {
@@ -276,31 +309,50 @@ class ray {
   hit multicast(ArrayList<boundary> walls, float distanceLimit)
   {
     float record = Float.POSITIVE_INFINITY;
-    PVector h;
+    PVector hp;
     float d;
+    hit h;
     PVector pt = new PVector(0,0);
     boundary b = walls.get(1);
     
     // find nearest boundary, so ray doesn't hit multiple walls
     for(boundary wall : walls){
       if(wall == lastHit) continue; // IMPORTANT - this stops the bug where rays can pass through walls
-      h = cast(wall);
-      if(h != null){
-        d = pos.dist(h);
+      hp = cast(wall);
+      if(hp != null){
+        d = pos.dist(hp);
         if(d < record){
           record = d;
-          pt = h;
+          pt = hp;
           b = wall;
         }
       }
     }
     if(record < distanceLimit){
-      return new hit(pt, b, true);
+      h = new hit(pt, b, true);
     } else {
       pt.x = pos.x + dir.x * distanceLimit;
       pt.y = pos.y + dir.y * distanceLimit;
-      return new hit(pt, b, false);
+      h = new hit(pt, b, false);
     }
+    if(wrapCircle){
+      float ptdist = pt.dist(centre);
+      float sdist = pos.dist(centre);
+      if(ptdist > wrapRadius && (!allowReturn || ptdist > sdist)){
+        PVector facing = new PVector(pt.x - pos.x, pt.y - pos.y);
+        PVector intoCircle = new PVector(centre.x - pos.x, centre.y - pos.y).normalize();
+        float facingMag = facing.mag();
+        facing.normalize();
+        PVector tangent = intoCircle.copy().rotate(PI/wrapRadius);
+        facing.lerp(tangent, wrapStrength);
+        h.wrapped = true;
+        h.facing = facing.heading();
+        facing.setMag(facingMag);
+        h.p = pos.add(facing);
+        
+      }
+    }
+    return h;
   }
   void recursivecast(ArrayList<boundary> walls)
   {
@@ -353,6 +405,8 @@ class hit{
   PVector p;
   boundary b;
   boolean realHit;
+  boolean wrapped;
+  float facing;
   
   hit(PVector pp, boundary bb, boolean rh){
     p = pp; b = bb; realHit = rh;
@@ -384,7 +438,7 @@ int selectWeighted(float[] w){
 void keyPressed()
 {
   if (keyCode==32) { // press space to save 
-    saveFrame("crfn-"+hour()+"-"+minute()+"-"+second()+".png");
+    saveFrame("crfnsy-"+hour()+"-"+minute()+"-"+second()+".png");
   }
   if (keyCode==10) { // press enter to reset
     setup();

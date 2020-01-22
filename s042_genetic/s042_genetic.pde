@@ -117,8 +117,8 @@ class creature{
     colour = color(genes[2], genes[3], genes[5]);
     maxAge = genes[6] * 50 + genes[1] * 30 + 20;
     maxEnergy = constrain(genes[7] - (1-genes[1]), 0, 1) * 100 + 20; energy = maxEnergy;
-    repEnergyCost = maxEnergy * (0.5 + genes[1]*0.2);
-    repTime = genes[8] * 400 + genes[1] * 300;
+    repEnergyCost = maxEnergy * (0.3 + genes[1]*0.4);
+    repTime = genes[8] * 100 + genes[1] * 700;
     repTimer = 0; fertile = false;
     reassessmentChance = genes[9]*0.02 + 0.98;
     existenceCost = (1-genes[1]) * 0.05 + 0.01;

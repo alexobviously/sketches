@@ -390,7 +390,7 @@ class planet{
             //line(p.pos.x, p.pos.y, p.pos.x + p.vel.x*50, p.pos.y + p.vel.y*50);
             //stroke(PI/4,0.9,1,100);
             //line(p.pos.x, p.pos.y, p.pos.x + tangent.x*50, p.pos.y + tangent.y*50);
-            p.vel.lerp(tangent,mass*0.03);
+            p.vel.lerp(tangent, mass*0.03);
             break;
         }
         p.vel.setMag(velMag);

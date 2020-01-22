@@ -2,6 +2,27 @@
 // iamalexbaker@gmail.com
 // dailygenerative.art.blog
 
+boundary bb;
+ray r;
+ArrayList<boundary> walls = new ArrayList<boundary>();
+ArrayList<ray> rays = new ArrayList<ray>();
+int do_draw = 1;
+color c, c2;
+PVector origin;
+float[] start_angle = {0,360}; // all parameters with a range get a random value each run
+float[] finish_angle = {0,360};
+float[] angle_inc = {0.1,3.0};
+int[] num_walls = {1,20};
+float power_start = 0.7;
+float[] power_dec = {0.01,0.08};
+int colour_mode = 3; // 0 = one random colour for all rays, 1 = one random colour for each ray, 2 = two colours, fade through rotation, 3 = two colours for all rays, lerp based on power
+int show_boundaries = 0;
+int hit_mode = 2; // 0 = lines, 1 = circles, 2 = both
+float circle_size[] = {4,15};
+float c_size = 15;
+boolean buggy_walls = false;
+boolean[] symmetry = {true, true}; // x, y
+
 class boundary {
   PVector a, b, normal;
 
@@ -38,6 +59,9 @@ class ray {
     if(show_mode == 0 || show_mode == 2){
       stroke(lerpColor(colour[0],colour[1],power), power*255);
       line(pos.x, pos.y, h.p.x, h.p.y);
+      if(symmetry[0]) line(pos.x, height - pos.y, h.p.x, height - h.p.y);
+      if(symmetry[1]) line(width - pos.x, pos.y, width - h.p.x, h.p.y);
+      if(symmetry[0] && symmetry[1]) line(width - pos.x, height - pos.y, width - h.p.x, height - h.p.y);
     }
     if(show_mode == 1 || show_mode == 2){
       noStroke();
@@ -125,25 +149,7 @@ class hit{
   }
 }
 
-boundary bb;
-ray r;
-ArrayList<boundary> walls = new ArrayList<boundary>();
-ArrayList<ray> rays = new ArrayList<ray>();
-int do_draw = 1;
-color c, c2;
-PVector origin;
-float[] start_angle = {0,360}; // all parameters with a range get a random value each run
-float[] finish_angle = {0,360};
-float[] angle_inc = {0.1,3.0};
-int[] num_walls = {1,20};
-float power_start = 0.7;
-float[] power_dec = {0.01,0.08};
-int colour_mode = 3; // 0 = one random colour for all rays, 1 = one random colour for each ray, 2 = two colours, fade through rotation, 3 = two colours for all rays, lerp based on power
-int show_boundaries = 0;
-int hit_mode = 2; // 0 = lines, 1 = circles, 2 = both
-float circle_size[] = {4,15};
-float c_size = 15;
-boolean buggy_walls = false;
+
 
 void setup() {
   size(800, 800);
@@ -205,7 +211,7 @@ void setup() {
 
 void draw() {
   if(do_draw==0) return;
-  background(50);
+  background(230);
   if(show_boundaries == 1){
     for (boundary wall : walls) {
       wall.show();
