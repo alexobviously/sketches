@@ -20,24 +20,29 @@ VideoExport videoExport;
 boolean smartRecording = false;
 
 float drag = 0.999; // set to 1 for no drag
-float gravity = 0.;
+float[] wind = {0.1, 0.1}; // formerly gravity
+boolean randomWind = true;
 float powerRange = 0.02; // for zones
 float[] sizeRange = {100, 400}; // for zones/planets
-float circleRadius = 300;
+float circleRadius = 250;
+float[] endRadius = {250, 300, 0};
 float circleAngle = PI/128;
 int initialiseMode = 3; // 0: random, 1: circle, 2: polar rose, 3: n-gon
+int endMode = -1; // -1: return to start pos, 0: random, 1: circle, 2: polar rose, 3: n-gon
 float[] initialImpulse = {0.001, 0.01, 0}; // good range: 0.01 - 0.035
-boolean randomImpulses = true; // if true, each particle has a different starting velocity
-float startDirection = -1; // +1: fly away from circle, -1: fly into it
-float shape = 5;
+boolean randomImpulses = false; // if true, each particle has a different starting velocity
+float startDirection = 1; // +1: fly away from circle, -1: fly into it
+float shape = 4;
+float endShape = 7;
 float[] startAngle = {0, TWO_PI, 0};
+float[] endStartAngle = {-PI/4, PI/4, 0}; // this is added to start angle, so set it to 0, 0 to sync the two shapes
 float[] planetMass = {1.0, 2.5};
 float systemPull = 0.2;
 int systemPullMode = 2; // 0 to drag into centre or 2 to pull into orbit
 float systemCentre = 1.0;
-boolean boundaries = false; // stop things going off the edge of the screen
+boolean boundaries = true; // stop things going off the edge of the screen
 float particleSize = 1;
-int numParticles = 3000;
+int numParticles = 6000;
 int numZones = 0;
 int numPlanets = 10;
 int numTicks = 1000;
@@ -47,6 +52,10 @@ boolean realTimeColour = true;
 float returnTurnRate = 0.2;
 float returnAccel = 1.0008;
 float returnSnapDistance = 5;
+int returnAfterTicks = 200; // for static-time, returns to position after this many ticks *SET TO ZERO FOR NORMAL BEHAVIOUR*
+boolean stopAfterReturn = true; // stops rendering new ticks after all particles have returned (using tolerance)
+float returnTolerance = 0.8;
+boolean dontRenderAfterReturn = true;
 boolean dissipate = false; // this doesn't really work as intended, I was trying to reacreate a cool looking bug
 float freezeRate = 0.05;
 float accelAmt = 1.1;
@@ -59,8 +68,8 @@ boolean realTime = false;
 boolean clearScreen = true; // if true, clears the screen each time the system is reset (press enter). (non realtime mode only)
 
 float[] hueRange = {0, TWO_PI};
-float[] satRange = {0.5, 1.0};
-float[] briRange = {0.5, 1.0};
+float[] satRange = {0., 1.0};
+float[] briRange = {0., .6};
 float alpha = 15;
 int nc = 2;
 color[] c = new color[nc];
@@ -84,7 +93,7 @@ void setup(){
     videoExport.setDebugging(false);
     
     colorMode(HSB, TWO_PI, 1, 1);
-    bgc = color(0, 0, 0.2);
+    bgc = color(0, 0, 0.8);
     background(bgc);
     initialised = true;
   }
@@ -103,51 +112,102 @@ void setup(){
   frozen = false;
   initialImpulse[2] = random(initialImpulse[0], initialImpulse[1]);
   startAngle[2] = random(startAngle[0], startAngle[1]);
+  endStartAngle[2] = startAngle[2] + random(endStartAngle[0], endStartAngle[1]);
+  endRadius[2] = random(endRadius[0], endRadius[1]);
+  wind[0] = random(-wind[0], wind[0]);
+  wind[1] = random(-wind[1], wind[1]);
   particles = new ArrayList<particle>();
   zones = new ArrayList<zone>();
   planets = new ArrayList<planet>();
   traces = new ArrayList<PVector>();
   PVector origin = new PVector(width/2, height/2);
-  if(initialiseMode == 0){
-    for(int i = 0; i < numParticles; i++){
-      if(randomImpulses) initialImpulse[2] = random(initialImpulse[0], initialImpulse[1]);
-      PVector force = PVector.random2D().mult(initialImpulse[2]);
-      particles.add(new particle(random(width), random(height), force.x*50, force.y*50));
+  
+  float bigt = TWO_PI / shape;
+  float crd2 = sin(bigt / 2);
+  float bigtE = TWO_PI / endShape;
+  float crd2E = sin(bigtE / 2);
+  float n = TWO_PI / numParticles;
+  circleAngle = n;
+  
+  for(int i = 0; i < numParticles; i++){
+    float xp, yp, xi, yi, xt, yt, r, xx, yy, t, tt;
+    switch(initialiseMode){
+      default:
+      case 0: // random
+        xp = random(width);
+        yp = random(height);
+        PVector force = PVector.random2D().mult(initialImpulse[2]);
+        xi = force.x * 50;
+        yi = force.y * 50;
+        break;
+      case 1: //circle
+        r = startAngle[2] + circleAngle * i;
+        xx = circleRadius * cos(r);
+        yy = circleRadius * sin(r);
+        xp = origin.x + xx;
+        yp = origin.y + yy;
+        xi = xx * initialImpulse[2] * startDirection;
+        yi = yy * initialImpulse[2] * startDirection;
+        break;
+      case 2: // polar rose
+        t = startAngle[2] + n * i;
+        r = cos(shape * t) * circleRadius;
+        xx = r * cos(t);
+        yy = r * sin(t);
+        xp = origin.x + xx;
+        yp = origin.y + yy;
+        xi = xx * initialImpulse[2] * startDirection;
+        yi = yy * initialImpulse[2] * startDirection;
+        break;
+      case 3: // n-gon
+        t = startAngle[2] + n * i;
+        tt = (startAngle[2] + t) % bigt;
+        r = crd2 / (tan(abs(bigt/2)) * cos(abs(bigt/2 - tt)));
+        xx = circleRadius * r * cos(t);
+        yy = circleRadius * r * sin(t);
+        xp = origin.x + xx;
+        yp = origin.y + yy;
+        xi = xx * initialImpulse[2] * startDirection;
+        yi = yy * initialImpulse[2] * startDirection;
+        break;
     }
-  }
-  if(initialiseMode == 1){
-    for(int i = 0; i < numParticles; i++){
-      float r = circleAngle * i;
-      float xp = circleRadius * cos(r);
-      float yp = circleRadius * sin(r);
-      if(randomImpulses) initialImpulse[2] = random(initialImpulse[0], initialImpulse[1]);
-      particles.add(new particle(origin.x+xp, origin.y+yp, xp * initialImpulse[2] * startDirection, yp * initialImpulse[2] * startDirection));
+    switch(endMode){
+      default:
+      case -1:
+        xt = xp;
+        yt = yp;
+        break;
+      case 0:
+        xt = random(width);
+        yt = random(height);
+        break;
+      case 1: // circle
+        r = endStartAngle[2] + circleAngle * i;
+        xx = endRadius[2] * cos(r);
+        yy = endRadius[2] * sin(r);
+        xt = origin.x + xx;
+        yt = origin.y + yy;
+        break;
+      case 2: // polar rose
+        t = endStartAngle[2] + n * i;
+        r = cos(endShape * t) * endRadius[2];
+        xx = r * cos(t);
+        yy = r * sin(t);
+        xt = origin.x + xx;
+        yt = origin.y + yy;
+        break;
+      case 3: // n-gon
+        t = endStartAngle[2] + n * i;
+        tt = (endStartAngle[2] + t) % bigtE;
+        r = crd2E / (tan(abs(bigtE/2)) * cos(abs(bigtE/2 - tt)));
+        xx = endRadius[2] * r * cos(t);
+        yy = endRadius[2] * r * sin(t);
+        xt = origin.x + xx;
+        yt = origin.y + yy;
+        break;
     }
-  }
-  if(initialiseMode == 2){
-    float n = TWO_PI / numParticles;
-    for(int i = 0; i < numParticles; i++){
-      float t = n * i;
-      float r = cos(shape * t) * circleRadius;
-      float xp = r * cos(t);
-      float yp = r * sin(t);
-      if(randomImpulses) initialImpulse[2] = random(initialImpulse[0], initialImpulse[1]);
-      particles.add(new particle(origin.x+xp, origin.y+yp, xp * initialImpulse[2] * startDirection, yp * initialImpulse[2] * startDirection));
-    }
-  }
-  if(initialiseMode == 3){
-    float bigt = TWO_PI / shape;
-    float crd2 = sin(bigt / 2);
-    float n = TWO_PI / numParticles;
-    for(int i = 0; i < numParticles; i++){
-      float t = startAngle[2] + n * i;
-      float tt = (startAngle[2] + t) % bigt;
-      float r = crd2 / (tan(abs(bigt/2)) * cos(abs(bigt/2 - tt)));
-      float xp = circleRadius * r * cos(t);
-      float yp = circleRadius * r * sin(t);
-      if(randomImpulses) initialImpulse[2] = random(initialImpulse[0], initialImpulse[1]);
-      particles.add(new particle(origin.x+xp, origin.y+yp, xp * initialImpulse[2] * startDirection, yp * initialImpulse[2] * startDirection));
-    }
+    if(randomImpulses) initialImpulse[2] = random(initialImpulse[0], initialImpulse[1]);
+      particles.add(new particle(xp, yp, xi, yi, xt, yt));
   }
   
   if(systemCentre > 0) planets.add(new planet(origin.x, origin.y, systemCentre, 5, 1));
@@ -173,6 +233,10 @@ void draw(){
   } else numTicks = staticTicks;
   if(!do_draw) return;
   for(int k = 0; k < numTicks; k++){
+    if(returnAfterTicks > 0 && k == returnAfterTicks){
+      returning = true;
+      startReturn();
+    }
     if(enablePlanets){
       for(planet pl: planets){
         pl.tick();
@@ -187,11 +251,25 @@ void draw(){
       p.tick();
       //p.show();
     }
+    if(k % 50 == 0){
+      println(k+" / "+numTicks+" ticks calculated...");
+    }
+    if(!realTime && returning && stopAfterReturn){
+      int h = 0;
+      for(particle p: particles){
+        if(p.home) h++;
+      }
+      if(h >= particles.size() * returnTolerance){
+        println("Stopped returning after "+k+" ticks.");
+        k = numTicks;
+      }
+    }
     currentTick++;
   }
   noStroke();
   //ellipse(400,400,200,200);
   //println(traces.size());
+  println("Rendering "+traces.size()+" traces..");
   for(PVector t: traces){
     fill(lerpColor(c[0], c[1], t.z), alpha);
     ellipse(t.x, t.y, particleSize, particleSize);
@@ -202,7 +280,7 @@ void draw(){
     videoExport.saveFrame();
   }
   
-  if(smartRecording && returning && recording){
+  if(returning && smartRecording && recording){
     int h = 0;
     for(particle p: particles){
       if(p.home) h++;
@@ -215,13 +293,13 @@ class particle{
   PVector initial, pos, vel;
   boolean home;
   
-  particle(float x, float y, float vx, float vy){
-    pos = new PVector(x, y); initial = new PVector(x, y); vel = new PVector(vx, vy); home = false;
+  particle(float x, float y, float vx, float vy, float tx, float ty){
+    pos = new PVector(x, y); initial = new PVector(tx, ty); vel = new PVector(vx, vy); home = false;
   }
   
   void tick(){
-    pos.x += vel.x;
-    pos.y += vel.y + gravity;
+    pos.x += vel.x + wind[1];
+    pos.y += vel.y + wind[0];
     if(boundaries){
       if(pos.x < 0 || pos.x > width) vel.x = -vel.x;
       if(pos.y < 0 || pos.y > height) vel.y = -vel.y;
@@ -229,7 +307,9 @@ class particle{
     if(!returning) vel.mult(drag);
     else goHome();
     if(frozen) freeze();
-    traces.add(new PVector(pos.x, pos.y, float(currentTick)/staticTicks));
+    boolean render = true;
+    if(!realTime && dontRenderAfterReturn && home) render = false;
+    if(render) traces.add(new PVector(pos.x, pos.y, float(currentTick)/staticTicks));
   }
   
   void goHome(){
@@ -373,6 +453,14 @@ void setRecording(boolean rec){
   }
 }
 
+void startReturn(){
+  if(!returning){
+    for(particle p: particles){
+      p.home = false;
+    }
+  }
+}
+
 void keyPressed()
 {
   if (keyCode==32) { // space
@@ -391,11 +479,7 @@ void keyPressed()
   if(keyCode==82) { // R
     returning = !returning;
     println("Returning: "+returning);
-    if(!returning){
-      for(particle p: particles){
-        p.home = false;
-      }
-    }
+    startReturn();
   }
   if(keyCode==70) { // F
     frozen = !frozen;
