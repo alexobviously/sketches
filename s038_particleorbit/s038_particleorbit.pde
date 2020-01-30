@@ -28,11 +28,11 @@ float circleRadius = 250;
 float[] endRadius = {250, 300, 0};
 float circleAngle = PI/128;
 int initialiseMode = 3; // 0: random, 1: circle, 2: polar rose, 3: n-gon
-int endMode = -1; // -1: return to start pos, 0: random, 1: circle, 2: polar rose, 3: n-gon
+int endMode = 3; // -1: return to start pos, 0: random, 1: circle, 2: polar rose, 3: n-gon
 float[] initialImpulse = {0.001, 0.01, 0}; // good range: 0.01 - 0.035
 boolean randomImpulses = false; // if true, each particle has a different starting velocity
 float startDirection = 1; // +1: fly away from circle, -1: fly into it
-float shape = 4;
+float shape = 3;
 float endShape = 7;
 float[] startAngle = {0, TWO_PI, 0};
 float[] endStartAngle = {-PI/4, PI/4, 0}; // this is added to start angle, so set it to 0, 0 to sync the two shapes
@@ -88,6 +88,7 @@ boolean initialised = false;
 
 void setup(){
   size(800, 800);
+  smooth(8);
   if(!initialised){
     videoExport = new VideoExport(this);
     videoExport.setDebugging(false);
