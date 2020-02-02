@@ -14,7 +14,7 @@ boolean useShape = true;
 int shape = 8;
 float startShape = 0;
 int blendShape = 1;
-boolean drawArcs = false;
+boolean drawArcs = true;
 boolean drawConn = true;
 
 float[] hue = {0, TWO_PI, 0};
