@@ -19,58 +19,75 @@ boolean recording = false;
 VideoExport videoExport;
 boolean smartRecording = false;
 
-float drag = 0.999; // set to 1 for no drag
-float[] wind = {0.1, 0.1}; // formerly gravity
+// System State
+float drag = 1;//0.999; // set to 1 for no drag
+float[] wind = {0.05, 0.1}; // formerly gravity
 boolean randomWind = true;
-float powerRange = 0.02; // for zones
-float[] sizeRange = {100, 400}; // for zones/planets
 float circleRadius = 200;
 float[] endRadius = {200, 250, 0};
 float circleAngle = PI/128;
 int initialiseMode = 3; // 0: random, 1: circle, 2: polar rose, 3: n-gon
-int endMode = 3; // -1: return to start pos, 0: random, 1: circle, 2: polar rose, 3: n-gon
-float[] initialImpulse = {0.001, 0.01, 0}; // good range: 0.01 - 0.035
-boolean randomImpulses = false; // if true, each particle has a different starting velocity - false will give a smooth effect and true will make it 'hairy'
+int endMode = -1; // -1: return to start pos, 0: random, 1: circle, 2: polar rose, 3: n-gon
 float startDirection = -1; // +1: fly away from circle, -1: fly into it
 float shape = 6;
 float endShape = 3;
-float[] startAngle = {0, TWO_PI, 0};
-float[] endStartAngle = {-PI/4, PI/4, 0}; // this is added to start angle, so set it to 0, 0 to sync the two shapes
-float[] planetMass = {1.0, 2.5};
-float systemPull = 0.2;
+float systemPull = 1.3;
 int systemPullMode = 2; // 0 to drag into centre or 2 to pull into orbit
 float systemCentre = 1.0;
 boolean boundaries = true; // stop things going off the edge of the screen
-float particleSize = 1;
-int numParticles = 6000;
-int numZones = 5;
-int numPlanets = 10;
+
+// Visual Settings
+boolean realTime = false;
 int numTicks = 1000;
 int staticTicks = 1000;
 int realTimeTicks = 3;
 boolean realTimeColour = true;
+float[] hueRange = {0, TWO_PI};
+float[] satRange = {0., 1.0};
+float[] briRange = {0., .6};
+float alpha = 15;
+float particleSize = 1;
+
+// Particle Options
+int numParticles = 5000;
 float returnTurnRate = 0.2;
 float returnAccel = 1.0008;
 float returnSnapDistance = 5;
-int returnAfterTicks = 200; // for static-time, returns to position after this many ticks *SET TO ZERO FOR NORMAL BEHAVIOUR*
+int returnAfterTicks = 300; // for static-time, returns to position after this many ticks *SET TO ZERO FOR NORMAL BEHAVIOUR*
 boolean stopAfterReturn = true; // stops rendering new ticks after all particles have returned (using tolerance)
 float returnTolerance = 0.9;
 boolean dontRenderAfterReturn = true;
 boolean dissipate = false; // this doesn't really work as intended, I was trying to reacreate a cool looking bug
 float freezeRate = 0.05;
 float accelAmt = 1.1;
+boolean particlesAttract = true;
+float[] particleMass = {0.01, .05}; // for attraction
+float[] particleAttractRadius = {5, 20};
+int particleAttractMode = 1; // 0: attract, 1: repel, 2: orbit
+int particleAttractDelay = 0; // in ticks
+
+// Zone/Planet Options
+int numZones = 50;
+int numPlanets = 5;
+float powerRange = 0.02; // for zones
+float[] sizeRange = {100, 400}; // for zones/planets
+float[] planetMass = {1.0, 2.5};
 float[] zoneStrength = {0.01, 0.1};
+
+float[] initialImpulse = {0.001, 0.01, 0}; // good range: 0.01 - 0.035
+boolean randomImpulses = false; // if true, each particle has a different starting velocity - false will give a smooth effect and true will make it 'hairy'
+
+float[] startAngle = {0, TWO_PI, 0};
+float[] endStartAngle = {-PI/4, PI/4, 0}; // this is added to start angle, so set it to 0, 0 to sync the two shapes
+
 
 
 boolean showZones = false;
 boolean do_draw = true;
-boolean realTime = false;
+
 boolean clearScreen = true; // if true, clears the screen each time the system is reset (press enter). (non realtime mode only)
 
-float[] hueRange = {0, TWO_PI};
-float[] satRange = {0., 1.0};
-float[] briRange = {0., .6};
-float alpha = 15;
+
 int nc = 2;
 color[] c = new color[nc];
 color bgc;
@@ -83,6 +100,7 @@ ArrayList<PVector> traces;
 int currentTick, currentTickRT;
 boolean returning, frozen = false;
 boolean enablePlanets = true;
+boolean particlesAttracting = false;
 
 boolean initialised = false;
 
@@ -111,6 +129,7 @@ void setup(){
   currentTick = 0;
   returning = false;
   frozen = false;
+  particlesAttracting = (particlesAttract && particleAttractDelay == 0)?true:false;
   initialImpulse[2] = random(initialImpulse[0], initialImpulse[1]);
   startAngle[2] = random(startAngle[0], startAngle[1]);
   endStartAngle[2] = startAngle[2] + random(endStartAngle[0], endStartAngle[1]);
@@ -208,7 +227,7 @@ void setup(){
         break;
     }
     if(randomImpulses) initialImpulse[2] = random(initialImpulse[0], initialImpulse[1]);
-      particles.add(new particle(xp, yp, xi, yi, xt, yt));
+      particles.add(new particle(xp, yp, xi, yi, xt, yt, particlesAttract, random(particleMass[0], particleMass[1]), particleAttractMode, random(particleAttractRadius[0], particleAttractRadius[1])));
   }
   
   if(systemCentre > 0) planets.add(new planet(origin.x, origin.y, systemCentre, 5, 1));
@@ -234,10 +253,11 @@ void draw(){
   } else numTicks = staticTicks;
   if(!do_draw) return;
   for(int k = 0; k < numTicks; k++){
-    if(returnAfterTicks > 0 && k == returnAfterTicks){
+    if(returnAfterTicks > 0 && currentTick == returnAfterTicks){
       returning = true;
       startReturn();
     }
+    if(!particlesAttracting && currentTick == particleAttractDelay && particlesAttract) particlesAttracting = true;
     if(enablePlanets){
       for(planet pl: planets){
         pl.tick();
@@ -250,9 +270,8 @@ void draw(){
     }
     for(particle p: particles){
       p.tick();
-      //p.show();
     }
-    if(k % 50 == 0){
+    if(k % 50 == 0 && !realTime){
       println(k+" / "+numTicks+" ticks calculated...");
     }
     if(!realTime && returning && stopAfterReturn){
@@ -261,7 +280,7 @@ void draw(){
         if(p.home) h++;
       }
       if(h >= particles.size() * returnTolerance){
-        println("Stopped returning after "+k+" ticks.");
+        if(!realTime) println("Stopped returning after "+k+" ticks.");
         k = numTicks;
       }
     }
@@ -270,7 +289,7 @@ void draw(){
   noStroke();
   //ellipse(400,400,200,200);
   //println(traces.size());
-  println("Rendering "+traces.size()+" traces..");
+  if(!realTime) println("Rendering "+traces.size()+" traces..");
   for(PVector t: traces){
     fill(lerpColor(c[0], c[1], t.z), alpha);
     ellipse(t.x, t.y, particleSize, particleSize);
@@ -292,10 +311,12 @@ void draw(){
 
 class particle{
   PVector initial, pos, vel;
-  boolean home;
+  boolean home, attract;
+  float radius, mass;
+  int attractMode; // 0: black hole, 1: push away, 2: orbit
   
-  particle(float x, float y, float vx, float vy, float tx, float ty){
-    pos = new PVector(x, y); initial = new PVector(tx, ty); vel = new PVector(vx, vy); home = false;
+  particle(float x, float y, float vx, float vy, float tx, float ty, boolean a, float m, int am, float ar){
+    pos = new PVector(x, y); initial = new PVector(tx, ty); vel = new PVector(vx, vy); home = false; radius = ar; attractMode = am; mass = m; attract = a;
   }
   
   void tick(){
@@ -311,6 +332,7 @@ class particle{
     boolean render = true;
     if(!realTime && dontRenderAfterReturn && home) render = false;
     if(render) traces.add(new PVector(pos.x, pos.y, float(currentTick)/staticTicks));
+    if(attract && particlesAttracting && !returning) attractParticles();
   }
   
   void goHome(){
@@ -339,6 +361,30 @@ class particle{
   void randomVelocity(){
     if(randomImpulses) initialImpulse[2] = random(initialImpulse[0], initialImpulse[1]);
     vel = PVector.random2D().mult(initialImpulse[2]*50);
+  }
+  void attractParticles(){
+    for(particle p: particles){
+      if(p == this) continue;
+      if(pos.dist(p.pos) <= radius/2){
+        PVector facingPlanet = new PVector(pos.x - p.pos.x , pos.y - p.pos.y).normalize();
+        float velMag = p.vel.mag();
+        p.vel.normalize();
+        switch(attractMode){
+          case 0:
+            p.vel.lerp(facingPlanet, mass*0.1);
+            break;
+          case 1:
+          facingPlanet.mult(-1);
+            p.vel.lerp(facingPlanet, mass*0.1);
+            break;
+          case 2:
+            PVector tangent = new PVector(facingPlanet.x, facingPlanet.y).rotate(PI/(2*mass));
+            p.vel.lerp(tangent, mass*0.03);
+            break;
+        }
+        p.vel.setMag(velMag);
+      }
+    }
   }
   
   void show(){
