@@ -27,14 +27,14 @@ float circleRadius = 200;
 float[] endRadius = {200, 250, 0};
 float circleAngle = PI/128;
 int initialiseMode = 3; // 0: random, 1: circle, 2: polar rose, 3: n-gon
-int endMode = -1; // -1: return to start pos, 0: random, 1: circle, 2: polar rose, 3: n-gon
+int endMode = 3; // -1: return to start pos, 0: random, 1: circle, 2: polar rose, 3: n-gon
 float startDirection = -1; // +1: fly away from circle, -1: fly into it
 float shape = 6;
-float endShape = 3;
+float endShape = 6;
 float systemPull = 1.3;
 int systemPullMode = 2; // 0 to drag into centre or 2 to pull into orbit
 float systemCentre = 1.0;
-boolean boundaries = true; // stop things going off the edge of the screen
+boolean boundaries = false; // stop things going off the edge of the screen
 
 // Visual Settings
 boolean realTime = false;
@@ -63,8 +63,8 @@ float accelAmt = 1.1;
 boolean particlesAttract = true;
 float[] particleMass = {0.01, .05}; // for attraction
 float[] particleAttractRadius = {5, 20};
-int particleAttractMode = 1; // 0: attract, 1: repel, 2: orbit
-int particleAttractDelay = 0; // in ticks
+int particleAttractMode = 0; // 0: attract, 1: repel, 2: orbit
+int particleAttractDelay = 50; // in ticks
 
 // Zone/Planet Options
 int numZones = 50;
@@ -105,7 +105,7 @@ boolean particlesAttracting = false;
 boolean initialised = false;
 
 void setup(){
-  size(800, 800);
+  size(800, 800, P2D);
   smooth(8);
   if(!initialised){
     videoExport = new VideoExport(this);
@@ -227,7 +227,7 @@ void setup(){
         break;
     }
     if(randomImpulses) initialImpulse[2] = random(initialImpulse[0], initialImpulse[1]);
-      particles.add(new particle(xp, yp, xi, yi, xt, yt, particlesAttract, random(particleMass[0], particleMass[1]), particleAttractMode, random(particleAttractRadius[0], particleAttractRadius[1])));
+    particles.add(new particle(xp, yp, xi, yi, xt, yt, particlesAttract, random(particleMass[0], particleMass[1]), particleAttractMode, random(particleAttractRadius[0], particleAttractRadius[1])));
   }
   
   if(systemCentre > 0) planets.add(new planet(origin.x, origin.y, systemCentre, 5, 1));
@@ -320,7 +320,7 @@ class particle{
   }
   
   void tick(){
-    pos.x += vel.x + wind[1];
+    pos.x += vel.x + wind[1]; 
     pos.y += vel.y + wind[0];
     if(boundaries){
       if(pos.x < 0 || pos.x > width) vel.x = -vel.x;
@@ -365,7 +365,8 @@ class particle{
   void attractParticles(){
     for(particle p: particles){
       if(p == this) continue;
-      if(pos.dist(p.pos) <= radius/2){
+      float r2 = radius/2;
+      if(sqd(pos, p.pos) <= r2*r2){ // more efficient than "pos.dist(p.pos) <= radius/2"
         PVector facingPlanet = new PVector(pos.x - p.pos.x , pos.y - p.pos.y).normalize();
         float velMag = p.vel.mag();
         p.vel.normalize();
@@ -414,7 +415,8 @@ class planet{
   
   void attractParticles(){
     for(particle p: particles){
-      if(pos.dist(p.pos) <= radius/2){
+      float r2 = radius/2;
+      if(sqd(pos, p.pos) <= r2*r2){
         PVector facingPlanet = new PVector(pos.x - p.pos.x , pos.y - p.pos.y).normalize();
         float velMag = p.vel.mag();
         p.vel.normalize();
@@ -470,7 +472,8 @@ class zone{
   
   void pushParticles(){
     for(particle p: particles){
-      if(pos.dist(p.pos) <= radius/2){
+      float r2 = radius/2;
+      if(sqd(pos, p.pos) <= r2*r2){
         if(mode){
           float mag = p.vel.mag();
           p.vel.normalize().lerp(force, strength).setMag(mag);
@@ -480,6 +483,12 @@ class zone{
       }
     }
   }
+}
+
+float sqd(PVector a, PVector b){
+  float dx = a.x - b.x;
+  float dy = a.y - b.y;
+  return dx*dx + dy*dy;
 }
 
 void drawVector(PVector pt, PVector v, float m, color col){
