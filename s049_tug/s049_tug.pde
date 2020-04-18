@@ -3,7 +3,8 @@
 // dailygenerative.art.blog
 
 boolean boundaries = true;
-boolean demo = true;
+boolean demo = false;
+boolean debug = true;
 
 color bgc;
 color[] teamColour = new color[2];
@@ -19,6 +20,18 @@ ArrayList<Beam> beams;
 ArrayList<Beam> removeBeams;
 ArrayList<Pulse> pulses;
 ArrayList<Pulse> removePulses;
+ArrayList<ArrayList<Spawner>> spawners;
+
+float[] money = new float[2];
+float[] income = new float[2];
+int spawnerBaseCost = 50;
+float spawnerCostMult = 1.4;
+int mouseOver = 0;
+int selected = 0;
+float incomeTime = 1000;
+float lastIncome = -10000;
+float startIncome = 5;
+int[] nextSpawnerCost = new int[2];
 
 enum unitType{
   none,
@@ -56,6 +69,11 @@ void setup(){
   removeBeams = new ArrayList<Beam>();
   pulses = new ArrayList<Pulse>();
   removePulses = new ArrayList<Pulse>();
+  spawners = new ArrayList<ArrayList<Spawner>>();
+  spawners.add(new ArrayList<Spawner>());
+  spawners.add(new ArrayList<Spawner>());
+  spawners.get(0).add(new Spawner(0, 1.0));
+  spawners.get(1).add(new Spawner(1, 1.0));
   teamBaseBuil[0] = new Building(0, teamBase[0], 50, 5000, 35, 325, 800, 4);
   teamBaseBuil[1] = new Building(1, teamBase[1], 50, 5000, 35, 325, 800, 4);
   buildings.add(teamBaseBuil[0]);
@@ -64,8 +82,12 @@ void setup(){
   buildings.add(new Building(0, new PVector(teamBase[0].x + 200, 2*height/3), 20, 2500, 10, 180, 125, 2));
   buildings.add(new Building(1, new PVector(teamBase[1].x - 200, height/3), 20, 2500, 10, 180, 125, 2));
   buildings.add(new Building(1, new PVector(teamBase[1].x - 200, 2*height/3), 20, 2500, 10, 180, 125, 2));
-  buildings.add(new Building(0, new PVector(width/2, height/4), 15, 1500, 10, 180, 100, 2));
-  buildings.add(new Building(1, new PVector(width/2, 3*height/4), 15, 1500, 10, 180, 100, 2));
+  //buildings.add(new Building(0, new PVector(width/2, height/4), 15, 1500, 10, 180, 100, 2));
+  //buildings.add(new Building(1, new PVector(width/2, 3*height/4), 15, 1500, 10, 180, 100, 2));
+  income[0] = startIncome;
+  income[1] = startIncome;
+  nextSpawnerCost[0] = spawnerBaseCost;
+  nextSpawnerCost[1] = spawnerBaseCost;
 }
 
 void draw(){
@@ -115,6 +137,179 @@ void draw(){
   }
   removePulses.clear();
   
+  for(ArrayList<Spawner> sp: spawners){
+    for(Spawner s: sp){
+      s.tick();
+    }
+  }
+  income();
+  handleInput();
+  drawUI();
+  if(random(10) > 9) AI();
+}
+
+// AI basically just buys random stuff at the moment
+void AI(){
+  if(money[1] >= nextSpawnerCost[1]){
+    if(debug) println("AI bought spawner number "+spawners.get(1).size()+" for "+nextSpawnerCost[1]);
+    newSpawner(1);
+  }
+  for(int i = 0; i < spawners.get(1).size(); i++){
+    Spawner sp = spawners.get(1).get(i);
+    if(i < 2 || sp.uType != unitType.fighter)
+    {
+      for(UpgradeOption up: sp.upOpt){
+        if(up.upType != upgradeType.unit && money[1] >= up.cost){
+          if(debug) println("AI bought upgrade "+up.upType+" level "+(up.level+1)+" for "+up.cost);
+          upgrade(sp, up);
+          i = spawners.get(1).size(); // break out of loop
+          break;
+        }
+      }
+    }else{
+      for(UpgradeOption up: sp.upOpt){
+        if(up.upType == upgradeType.unit && money[1] >= up.cost && random(5) > 4){
+          if(debug) println("AI bought upgrade "+up.upType+" level "+(up.level+1)+" for "+up.cost);
+          upgrade(sp, up);
+          i = spawners.get(1).size();
+          break;
+        }
+      }
+    }
+  }
+}
+
+void income(){
+  if(millis() - lastIncome >= incomeTime){
+    money[0] += income[0];
+    money[1] += income[1];
+    lastIncome = millis();
+  }
+}
+
+void handleInput(){
+  if(selected==0){
+    int numBoxes = spawners.get(0).size() + 1;
+    if(mouseY >= 10 && mouseY <= 60 && mouseX >= 10 && mouseX <= 10 + 50*numBoxes){
+      mouseOver = floor((mouseX - 10) / 50) + 1;
+    }
+    else mouseOver = 0;
+  } else{
+    int numBoxes = spawners.get(0).get(selected-1).upOpt.size();
+    int leftBox = max(0, (selected-1) - floor(numBoxes/2));
+    if(mouseY >= 60 && mouseY <= 110 && mouseX >= 10 + leftBox*50 && mouseX <= 10 + (numBoxes+leftBox)*50){
+      mouseOver = floor((mouseX - 10) / 50) + 1 - leftBox;
+    } else mouseOver = 0;
+  }
+}
+
+void mousePressed(){
+  if(selected==0){
+    int numBoxes = spawners.get(0).size() + 1;
+    if(mouseY >= 10 && mouseY <= 60 && mouseX >= 10 && mouseX <= 10 + 50*numBoxes){
+      selected = floor((mouseX - 10) / 50) + 1;
+      if(selected == spawners.get(0).size() + 1){
+        newSpawner(0);
+        selected = 0;
+      }
+    }
+    else selected = 0;
+  } else{
+    int numBoxes = spawners.get(0).get(selected-1).upOpt.size();
+    int leftBox = max(0, (selected-1) - floor(numBoxes/2));
+    if(mouseY >= 60 && mouseY <= 110 && mouseX >= 10 + leftBox*50 && mouseX <= 10 + (numBoxes+leftBox)*50){
+      int selOpt = floor((mouseX - (leftBox*50 + 10)) / 50);
+      upgrade(0, selected-1, selOpt);
+    }
+    selected = 0;
+  }
+}
+
+void drawUI(){
+  drawUnitCounts();
+  drawMoney();
+  drawSpawners();
+}
+
+void drawMoney(){
+  textSize(32);
+  textAlign(RIGHT, TOP);
+  fill(teamColour[0]);
+  text(int(money[0]), width-20, 10);
+  textSize(10);
+  text("+"+int(income[0]), width-5, 2);
+  if(debug){
+    textSize(32);
+    textAlign(RIGHT, TOP);
+    fill(teamColour[1]);
+    text(int(money[1]), width-20, 50);
+    textSize(10);
+    text("+"+int(income[1]), width-5, 42);
+  }
+}
+
+void drawSpawners(){
+  rectMode(CORNER);
+  for(int i = 0; i < spawners.get(0).size() + 1; i++){
+    if(mouseOver==i+1 && selected == 0) fill(0,0,0.2);
+    else if(selected==i+1) fill(0,0,0.4);
+    else noFill();
+    stroke(0,0,.8); // white-ish
+    strokeWeight(2);
+    rect(10 + i*50, 10, 50, 50);
+    textAlign(CENTER);
+    fill(0,0,.8);
+    textSize(10);
+    text(i+1, 35 + i *50, 55);
+    if(i < spawners.get(0).size()){
+      Spawner sp = spawners.get(0).get(i);
+      text(sp.uType.toString(), 35 + i*50, 40);
+    }
+    else{
+      fill(teamColour[0]);
+      textSize(16);
+      text(nextSpawnerCost[0], 35 + i*50, 40);
+    }
+  }
+  if(selected != 0) drawOptions(selected);
+}
+
+void drawOptions(int spawner){
+  if(spawner < spawners.get(0).size()+1)
+  {
+    Spawner sp = spawners.get(0).get(spawner-1);
+    int numOpt = sp.upOpt.size();
+    int leftBox = max(0, (spawner-1) - floor(numOpt/2));
+    for(int i = leftBox; i < leftBox + numOpt; i++){
+      if(mouseOver==(i-leftBox)+1) fill(0,0,0.2);
+      else noFill();
+      stroke(0,0,.8); // white-ish
+      strokeWeight(2);
+      rect(10 + i*50, 60, 50, 50);
+      textAlign(CENTER);
+      UpgradeOption opt = sp.upOpt.get(i-leftBox);
+      fill(0, 0, 0.8);
+      textSize(10);
+      String msg = "";
+      switch(opt.upType){
+        default:
+          break;
+        case unit:
+          msg = opt.uType.toString();
+          break;
+        case number:
+          msg = opt.upType.toString();
+          break;
+      }
+      text(msg, 35+ i*50, 85);
+      fill(teamColour[0]);
+      textSize(10);
+      text(int(opt.cost), 35 + i *50, 105);
+    }
+  }
+}
+
+void drawUnitCounts(){
   textSize(32);
   fill(teamColour[0]);
   textAlign(RIGHT, BOTTOM);
@@ -131,6 +326,14 @@ void draw(){
   line(width/2, height-5, width/2 +40, height-5);
   stroke(color(180));
   line(width/2 -40, height-3, width/2+40, height-3);
+}
+
+void newSpawner(int team){
+  if(money[team] >= nextSpawnerCost[team]){
+    money[team] -= nextSpawnerCost[team];
+    nextSpawnerCost[team] = int(nextSpawnerCost[team]*spawnerCostMult);
+    spawners.get(team).add(new Spawner(team, pow(spawnerCostMult, spawners.get(team).size())));
+  }
 }
 
 void newUnits(int team, unitType uType, int num, Building b){
@@ -184,6 +387,7 @@ class Fighter extends Unit{
          burstCount = 1;
          spread = 0;
          fill = false;
+         bounty = 1;
    }
 }
 
@@ -204,6 +408,7 @@ class Sniper extends Unit{
          fill = false;
          projSpeed = 5;
          pushResistance = 0.4;
+         bounty = 10;
    }
 }
 
@@ -223,6 +428,7 @@ class Shotgun extends Unit{
          spread = 20;
          fill = true;
          projSpeed = 2;
+         bounty = 8;
    }
 }
 
@@ -242,6 +448,7 @@ class Swarm extends Unit{
          spread = 10;
          fill = false;
          strokeWeight = 1;
+         bounty = 0.1;
    }
 }
 
@@ -261,6 +468,7 @@ class Machinegun extends Unit{
     spread = 10;
     projSpeed = 4;
     pushResistance = 0.5;
+    bounty = 12;
   }
 }
 
@@ -278,6 +486,7 @@ class Bouncer extends Unit{
     fill = true;
     projSpeed = 5;
     pushResistance = 1.0;
+    bounty = 8;
   }
 }
 
@@ -297,7 +506,108 @@ class Medic extends Unit{
     healEffectSpeed = 5;
     healEffectDecay = 10;
     healEffectThickness = 10;
+    bounty = 8;
   }
+}
+
+class Spawner{
+  int team;
+  float costMult = 1.0;
+  unitType uType = unitType.fighter;
+  int numUnits = 1;
+  float spawnTime = 5000;
+  float lastSpawn = -1000;
+  boolean canSpawn = false;
+  ArrayList<UpgradeOption> upOpt;
+  
+  Spawner(int _team, float _costMult){
+    team = _team; costMult = _costMult;
+    upOpt = new ArrayList<UpgradeOption>();
+    BasicUpgrades();
+    FighterUpgrades();
+  }
+  void BasicUpgrades(){
+    upOpt.add(new UpgradeOption((uType==unitType.fighter)?50:100, upgradeType.number, (uType==unitType.swarm)?5:1));
+  }
+  void FighterUpgrades(){
+    upOpt.add(new UpgradeOption(200, unitType.sniper, 1, 15000));
+    upOpt.add(new UpgradeOption(200, unitType.shotgun, 1, 15000));
+    upOpt.add(new UpgradeOption(200, unitType.swarm, 10, 10000));
+    upOpt.add(new UpgradeOption(200, unitType.machinegun, 1, 15000));
+    upOpt.add(new UpgradeOption(200, unitType.bouncer, 1, 10000));
+    upOpt.add(new UpgradeOption(200, unitType.medic, 1, 15000));
+  }
+  void tick(){
+    if(millis() - lastSpawn >= spawnTime) canSpawn = true;
+    if(canSpawn) spawn();
+  }
+  void spawn(){
+    newUnits(team, uType, numUnits, null);
+    canSpawn = false;
+    lastSpawn = millis();
+  }
+  void upgrade(UpgradeOption up){
+    if(up.upType != upgradeType.unit){
+      up.cost = int(up.cost * up.costMultipler);
+      up.level++;
+    }
+    switch(up.upType){
+      default:
+      case number:
+        numUnits += int(up.numUnits);
+        break;
+      case unit:
+          uType = up.uType;
+          numUnits = up.numUnits;
+          spawnTime = up.time;
+          upOpt.clear();
+          BasicUpgrades();
+        break;
+    }
+  }
+}
+
+enum upgradeType{
+  none,
+  unit,
+  number,
+  time,
+  damage,
+  range,
+}
+
+void upgrade(Spawner sp, UpgradeOption upOpt){
+  int team = sp.team;
+  if(money[team] >= upOpt.cost){
+    money[team] -= upOpt.cost;
+    sp.upgrade(upOpt);
+  }
+}
+
+void upgrade(int team, int spawner, int upOpt){
+  Spawner sp = spawners.get(team).get(spawner);
+  UpgradeOption opt = sp.upOpt.get(upOpt);
+  upgrade(sp, opt);
+}
+
+class UpgradeOption{
+  float cost = 1000;
+  unitType uType = unitType.none;
+  upgradeType upType = upgradeType.none;
+  float value = 1.0;
+  int numUnits = 1;
+  float time = 5000.0;
+  int level = 0;
+  float costMultipler = 1.2;
+  
+  UpgradeOption(float _cost, unitType _uType, int _numUnits, float _time){
+    cost = _cost; uType = _uType; upType = upgradeType.unit; numUnits = _numUnits; time = _time;
+  }
+  
+  UpgradeOption(float _cost, upgradeType _upType, float _value){
+    cost = _cost; upType = _upType; value = _value;
+  }
+  
 }
 
 class Unit{
@@ -324,6 +634,8 @@ class Unit{
   boolean hasCross, hasInner;
   float strokeWeight = 3;
   float innerSize;
+  float bounty = 0;
+  boolean alive = true;
   
   Unit(int _team, PVector _pos, PVector _target){
     team = _team; pos = new PVector(_pos.x, _pos.y); target = _target;
@@ -460,7 +772,7 @@ class Unit{
   
   void takeDamage(PVector impact, float damage, float forceMag){
     health -= damage;
-    if(health <= 0) die();
+    if(health <= 0 && alive) die();
     if(pushResistance > 0) forceMag -= pushResistance;
     if(forceMag > 0){
       PVector force = new PVector(pos.x - impact.x, pos.y - impact.y);
@@ -470,6 +782,8 @@ class Unit{
   }
   
   void die(){
+    if(bounty > 0) money[1-team] += bounty;
+    alive = false;
     removeUnits.add(this);
   }
   
