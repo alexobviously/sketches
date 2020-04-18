@@ -3,6 +3,7 @@
 // dailygenerative.art.blog
 
 boolean boundaries = true;
+boolean demo = true;
 
 color bgc;
 color[] teamColour = new color[2];
@@ -69,52 +70,7 @@ void setup(){
 
 void draw(){
   background(bgc);
-  if(teamBaseBuil[0].health > 0){
-    if(random(100) > 99){
-      newUnits(0, unitType.fighter, 4, null);
-    }
-    if(random(1000) > 998){
-      newUnits(0, unitType.sniper, 1, null);
-    }
-    if(random(1000) > 999){
-      newUnits(0, unitType.swarm, 30, null);
-    }
-    if(random(1000) > 999){
-      newUnits(0, unitType.shotgun, 1, null);
-    }
-    if(random(10000) > 9995){
-      newUnits(0, unitType.machinegun, 1, null);
-    }
-    if(random(1000) > 998){
-      newUnits(0, unitType.bouncer, 1, null);
-    }
-    if(random(1000) > 999){
-      newUnits(0, unitType.medic, 1, null);
-    }
-  }
-  if(teamBaseBuil[1].health > 0){
-    if(random(100) > 99){
-      newUnits(1, unitType.fighter, 4, null);
-    }
-    if(random(1000) > 999){
-      newUnits(1, unitType.sniper, 1, null);
-    }
-    if(random(1000) > 998){
-      newUnits(1, unitType.swarm, 30, null);
-    }
-    if(random(1000) > 998){
-      newUnits(1, unitType.shotgun, 1, null);
-    }
-    if(random(10000) > 9995){
-      newUnits(1, unitType.machinegun, 1, null);
-    }
-    if(random(1000) > 998){
-      newUnits(1, unitType.bouncer, 1, null);
-    }
-    if(random(1000) > 999){
-      newUnits(1, unitType.medic, 1, null);
-    }
-  }
+  if(demo) demo_spawning();
   for(ArrayList<Unit> uu: units){
     for(Unit u: uu){
       u.tick();
@@ -736,5 +692,67 @@ class Pulse{
       stroke(teamColour[team], alpha - max(decay,((thickness-i)*(alpha/thickness))));
       ellipse(pos.x, pos.y, radius+i, radius+i);
     }
+  }
+}
+
+void demo_spawning(){
+  if(teamBaseBuil[0].health > 0){
+    if(random(100) > 99){
+      newUnits(0, unitType.fighter, 4, null);
+    }
+    if(random(1000) > 998){
+      newUnits(0, unitType.sniper, 1, null);
+    }
+    if(random(1000) > 999){
+      newUnits(0, unitType.swarm, 30, null);
+    }
+    if(random(1000) > 999){
+      newUnits(0, unitType.shotgun, 1, null);
+    }
+    if(random(10000) > 9995){
+      newUnits(0, unitType.machinegun, 1, null);
+    }
+    if(random(1000) > 998){
+      newUnits(0, unitType.bouncer, 1, null);
+    }
+    if(random(1000) > 999){
+      newUnits(0, unitType.medic, 1, null);
+    }
+  }
+  if(teamBaseBuil[1].health > 0){
+    if(random(100) > 99){
+      newUnits(1, unitType.fighter, 4, null);
+    }
+    if(random(1000) > 999){
+      newUnits(1, unitType.sniper, 1, null);
+    }
+    if(random(1000) > 998){
+      newUnits(1, unitType.swarm, 30, null);
+    }
+    if(random(1000) > 998){
+      newUnits(1, unitType.shotgun, 1, null);
+    }
+    if(random(10000) > 9995){
+      newUnits(1, unitType.machinegun, 1, null);
+    }
+    if(random(1000) > 998){
+      newUnits(1, unitType.bouncer, 1, null);
+    }
+    if(random(1000) > 999){
+      newUnits(1, unitType.medic, 1, null);
+    }
+  }
+}
+
+void keyPressed()
+{
+  if (keyCode==32) { // space
+    String fn = "pair-"+hour()+"-"+minute()+"-"+second()+".png";
+    saveFrame(fn);
+    println("Saved image "+fn);
+  }
+  if (keyCode==10 && demo) { // enter
+    setup();
+    println("Initialising new state");
   }
 }
