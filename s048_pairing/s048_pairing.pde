@@ -1,6 +1,6 @@
-//
-//
-//
+// made by alex
+// iamalexbaker@gmail.com
+// dailygenerative.art.blog
 
 float[] windRange = {-.5, 0.5};
 float[] wind = {0., 0.};
@@ -60,7 +60,6 @@ void setup(){
     wind[0] = random(windRange[0], windRange[1]);
     wind[1] = random(windRange[0], windRange[1]);
   }
-  println(wind[0]+" "+wind[1]);
 }
 
 void draw(){

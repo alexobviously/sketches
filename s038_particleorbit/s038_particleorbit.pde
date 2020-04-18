@@ -120,8 +120,8 @@ void setup(){
   if(clearScreen) background(bgc);
   
   hue = random(hueRange[0], hueRange[1]);
-  sat = random(satRange[0], satRange[1]) * TWO_PI;
-  bri = random(briRange[0], briRange[1]) * TWO_PI;
+  sat = random(satRange[0], satRange[1]);
+  bri = random(briRange[0], briRange[1]);
   for(int i = 0; i < nc; i++){
     c[i] = color(random(hueRange[0], hueRange[1]), random(satRange[0], satRange[1]), random(briRange[0], briRange[1]));
   }
@@ -134,8 +134,8 @@ void setup(){
   startAngle[2] = random(startAngle[0], startAngle[1]);
   endStartAngle[2] = startAngle[2] + random(endStartAngle[0], endStartAngle[1]);
   endRadius[2] = random(endRadius[0], endRadius[1]);
-  wind[0] = random(-wind[0], wind[0]);
-  wind[1] = random(-wind[1], wind[1]);
+  wind[0] = random(-wind[0], wind[0]); // actually this is wrong!
+  wind[1] = random(-wind[1], wind[1]); // didn't realise
   particles = new ArrayList<particle>();
   zones = new ArrayList<zone>();
   planets = new ArrayList<planet>();
