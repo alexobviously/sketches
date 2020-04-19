@@ -4,7 +4,7 @@
 
 boolean boundaries = true;
 boolean demo = false;
-boolean debug = true;
+boolean debug = false;
 
 color bgc;
 color[] teamColour = new color[2];
@@ -578,6 +578,13 @@ class Spawner{
     upOpt.add(new UpgradeOption(150, unitType.bouncer, 1, 10000));
     upOpt.add(new UpgradeOption(150, unitType.medic, 1, 15000));
   }
+  void RemoveFighterUpgrades(){
+    ArrayList<UpgradeOption> remove = new ArrayList<UpgradeOption>();
+    for(UpgradeOption opt: upOpt){
+      if(opt.upType == upgradeType.unit) remove.add(opt);
+    }
+    upOpt.removeAll(remove);
+  }
   void tick(){
     if(millis() - lastSpawn >= spawnTime) canSpawn = true;
     if(canSpawn) spawn(false);
@@ -593,6 +600,7 @@ class Spawner{
     if(up.upType != upgradeType.unit){
       up.cost = int(up.cost * up.costMultipler);
       up.level++;
+      if(uType == unitType.fighter) RemoveFighterUpgrades();
     }
     switch(up.upType){
       default:
@@ -683,10 +691,6 @@ class Unit{
   
   Unit(int _team, PVector _pos, PVector _target){
     team = _team; pos = new PVector(_pos.x, _pos.y); target = _target;
-    //health = maxHealth = _health; maxSpeed = _speed;
-    //attackDamage = _aDamage; attackRange = _aRange; attackRate = _aRate; target = _target; size = _size;
-    //hitForce = _hitForce; penetrate = _pen; projSize = _projSize; burstCount = _burstCount; spread = _spread;
-    //fill = _fill;
     vel = new PVector();
   }
   
