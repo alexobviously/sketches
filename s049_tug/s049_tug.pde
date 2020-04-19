@@ -1,5 +1,5 @@
 // made by alex
-// iamalebaker@gmail.com
+// iamalexbaker@gmail.com
 // dailygenerative.art.blog
 
 boolean boundaries = true;
@@ -150,6 +150,12 @@ void draw(){
   handleInput();
   drawUI();
   if(random(10) > 9) AI();
+  
+  if(!teamBaseBuil[0].alive){
+    drawResultText(false);
+  } else if (!teamBaseBuil[1].alive) {
+    drawResultText(true);
+  }
 }
 
 // AI basically just buys random stuff at the moment
@@ -247,6 +253,17 @@ void mousePressed(){
     }
     selected = 0;
   }
+}
+
+void drawResultText(boolean victory){
+  fill(0,0,0,120);
+  rectMode(CENTER);
+  noStroke();
+  rect(width/2, height/2, width/2, height/2);
+  textSize(96);
+  textAlign(CENTER);
+  fill(teamColour[victory?0:1], 200);
+  text(victory?"Victory!":"Defeat", width/2, height/2 + 30);
 }
 
 void drawUI(){
