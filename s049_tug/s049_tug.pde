@@ -32,6 +32,7 @@ float incomeTime = 1000;
 float lastIncome = -10000;
 float startIncome = 5;
 int[] nextSpawnerCost = new int[2];
+float AISaveTarget = 0;
 
 enum unitType{
   none,
@@ -137,11 +138,14 @@ void draw(){
   }
   removePulses.clear();
   
-  for(ArrayList<Spawner> sp: spawners){
-    for(Spawner s: sp){
-      s.tick();
+  for(int i = 0; i < 2; i++){
+    if(teamBaseBuil[i].alive){
+      for(Spawner s: spawners.get(i)){
+        s.tick();
+      }
     }
   }
+  
   income();
   handleInput();
   drawUI();
@@ -151,28 +155,48 @@ void draw(){
 // AI basically just buys random stuff at the moment
 void AI(){
   if(money[1] >= nextSpawnerCost[1]){
-    if(debug) println("AI bought spawner number "+spawners.get(1).size()+" for "+nextSpawnerCost[1]);
-    newSpawner(1);
+    if(nextSpawnerCost[1] >= AISaveTarget){
+      if(debug) println("AI bought spawner number "+(spawners.get(1).size()+1)+" for "+nextSpawnerCost[1]);
+      newSpawner(1);
+      AISaveTarget = 0;
+    }
+  } else if(AISaveTarget == 0 && random(1000)>995){
+      AISaveTarget = nextSpawnerCost[1];
+      if(debug) println("AI Save Target set to "+nextSpawnerCost[1]);
   }
   for(int i = 0; i < spawners.get(1).size(); i++){
     Spawner sp = spawners.get(1).get(i);
     if(i < 2 || sp.uType != unitType.fighter)
     {
       for(UpgradeOption up: sp.upOpt){
-        if(up.upType != upgradeType.unit && money[1] >= up.cost){
-          if(debug) println("AI bought upgrade "+up.upType+" level "+(up.level+1)+" for "+up.cost);
-          upgrade(sp, up);
-          i = spawners.get(1).size(); // break out of loop
-          break;
+        if(up.upType == upgradeType.unit) continue;
+        if(money[1] >= up.cost){
+          if(up.cost >= AISaveTarget){
+            if(debug) println("AI bought upgrade "+up.upType+" level "+(up.level+1)+" for "+up.cost);
+            upgrade(sp, up);
+            AISaveTarget = 0;
+            i = spawners.get(1).size(); // break out of loop
+            break;
+          }
+        } else if(AISaveTarget == 0 && random(1000)>995){
+          AISaveTarget = up.cost;
+          if(debug) println("AI Save Target set to "+up.cost);
         }
       }
     }else{
       for(UpgradeOption up: sp.upOpt){
-        if(up.upType == upgradeType.unit && money[1] >= up.cost && random(5) > 4){
-          if(debug) println("AI bought upgrade "+up.upType+" level "+(up.level+1)+" for "+up.cost);
-          upgrade(sp, up);
-          i = spawners.get(1).size();
-          break;
+        if(up.upType != upgradeType.unit) continue;
+        if(money[1] >= up.cost && random(5) > 4){
+          if(up.cost >= AISaveTarget){
+            if(debug) println("AI bought upgrade "+up.upType+" level "+(up.level+1)+" for "+up.cost);
+            upgrade(sp, up);
+            AISaveTarget = 0;
+            i = spawners.get(1).size();
+            break;
+          }
+        } else if(AISaveTarget == 0 && random(100)>99){
+            AISaveTarget = up.cost;
+            if(debug) println("AI Save Target set to "+up.cost);
         }
       }
     }
@@ -396,10 +420,10 @@ class Sniper extends Unit{
          super(_team, _pos, _target);
          health = maxHealth = 110;
          maxSpeed = 0.8;
-         attackDamage = 25;
+         attackDamage = 22;
          attackRange = 175;
          attackRate = 3500;
-         size = 20;
+         size = 18;
          hitForce = 2.5;
          penetrate = true;
          projSize = 15;
@@ -435,9 +459,9 @@ class Shotgun extends Unit{
 class Swarm extends Unit{
   Swarm(int _team, PVector _pos, PVector _target){
          super(_team, _pos, _target);
-         health = maxHealth = 10;
+         health = maxHealth = 12;
          maxSpeed = 1.65;
-         attackDamage = 3;
+         attackDamage = 4;
          attackRange = 60;
          attackRate = 200;
          size = 3;
@@ -527,24 +551,26 @@ class Spawner{
     FighterUpgrades();
   }
   void BasicUpgrades(){
-    upOpt.add(new UpgradeOption((uType==unitType.fighter)?50:100, upgradeType.number, (uType==unitType.swarm)?5:1));
+    upOpt.add(new UpgradeOption((uType==unitType.fighter)?50:150, upgradeType.number, (uType==unitType.swarm)?10:1));
   }
   void FighterUpgrades(){
-    upOpt.add(new UpgradeOption(200, unitType.sniper, 1, 15000));
+    upOpt.add(new UpgradeOption(250, unitType.sniper, 1, 15000));
     upOpt.add(new UpgradeOption(200, unitType.shotgun, 1, 15000));
-    upOpt.add(new UpgradeOption(200, unitType.swarm, 10, 10000));
-    upOpt.add(new UpgradeOption(200, unitType.machinegun, 1, 15000));
-    upOpt.add(new UpgradeOption(200, unitType.bouncer, 1, 10000));
-    upOpt.add(new UpgradeOption(200, unitType.medic, 1, 15000));
+    upOpt.add(new UpgradeOption(100, unitType.swarm, 10, 10000));
+    upOpt.add(new UpgradeOption(300, unitType.machinegun, 1, 15000));
+    upOpt.add(new UpgradeOption(150, unitType.bouncer, 1, 10000));
+    upOpt.add(new UpgradeOption(150, unitType.medic, 1, 15000));
   }
   void tick(){
     if(millis() - lastSpawn >= spawnTime) canSpawn = true;
-    if(canSpawn) spawn();
+    if(canSpawn) spawn(false);
   }
-  void spawn(){
+  void spawn(boolean bonus){
     newUnits(team, uType, numUnits, null);
-    canSpawn = false;
-    lastSpawn = millis();
+    if(!bonus){
+      canSpawn = false;
+      lastSpawn = millis();
+    }
   }
   void upgrade(UpgradeOption up){
     if(up.upType != upgradeType.unit){
@@ -554,7 +580,8 @@ class Spawner{
     switch(up.upType){
       default:
       case number:
-        numUnits += int(up.numUnits);
+        numUnits += int(up.value);
+        if(uType==unitType.swarm) println("Swarm units "+numUnits);
         break;
       case unit:
           uType = up.uType;
@@ -598,7 +625,7 @@ class UpgradeOption{
   int numUnits = 1;
   float time = 5000.0;
   int level = 0;
-  float costMultipler = 1.2;
+  float costMultipler = 1.3;
   
   UpgradeOption(float _cost, unitType _uType, int _numUnits, float _time){
     cost = _cost; uType = _uType; upType = upgradeType.unit; numUnits = _numUnits; time = _time;
@@ -1065,7 +1092,7 @@ void keyPressed()
     saveFrame(fn);
     println("Saved image "+fn);
   }
-  if (keyCode==10 && demo) { // enter
+  if (keyCode==10 && (debug||demo)) { // enter
     setup();
     println("Initialising new state");
   }
