@@ -5,7 +5,7 @@
 boolean boundaries = true;
 boolean demo = false;
 boolean debug = false;
-boolean cheat = true;
+boolean cheat = false;
 
 color bgc;
 color[] teamColour = new color[2];
@@ -161,11 +161,12 @@ void draw(){
       }
     }
   }
-  
-  income();
-  handleInput();
-  drawUI();
-  if(random(10) > 9) AI();
+  if(!demo){
+    income();
+    handleInput();
+    drawUI();
+    if(random(10) > 9) AI();
+  }
   
   boolean doFade = false;
   if(!teamBaseBuil[0].alive){
@@ -1185,6 +1186,9 @@ void demo_spawning(){
     if(random(1000) > 999){
       newUnits(0, unitType.medic, 1, null);
     }
+    if(random(10000) > 9995){
+      newUnits(0, unitType.bomber, 1, null);
+    }
   }
   if(teamBaseBuil[1].health > 0){
     if(random(100) > 99){
@@ -1207,6 +1211,9 @@ void demo_spawning(){
     }
     if(random(1000) > 999){
       newUnits(1, unitType.medic, 1, null);
+    }
+    if(random(10000) > 9995){
+      newUnits(0, unitType.bomber, 1, null);
     }
   }
 }
