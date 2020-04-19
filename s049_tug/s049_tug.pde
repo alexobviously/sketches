@@ -5,7 +5,7 @@
 boolean boundaries = true;
 boolean demo = false;
 boolean debug = false;
-boolean cheat = false;
+boolean cheat = true;
 
 color bgc;
 color[] teamColour = new color[2];
@@ -32,8 +32,12 @@ int selected = 0;
 float incomeTime = 1000;
 float lastIncome = -10000;
 float startIncome = 5;
+float startMoney = 0;
 int[] nextSpawnerCost = new int[2];
 float AISaveTarget = 0;
+float fadeStart = -1;
+float fadeTime = 2500;
+int fading = 0;
 
 enum unitType{
   none,
@@ -52,11 +56,13 @@ void setup(){
   smooth(8);
   colorMode(HSB, TWO_PI, 1, 1);
   bgc = color(50);
+  float[] h = new float[2];
+  h[0] = random(TWO_PI);
+  h[1] = (h[0] + PI) % TWO_PI;
   for(int i = 0; i < 2; i++){
-    float h = random(TWO_PI);
     float s = random(0.7, 1.0);
     float b = 1;
-    teamColour[i] = color(h,s,b);
+    teamColour[i] = color(h[i],s,b);
   }
   teamBase[0] = new PVector(width/10, height/2);
   teamBase[1] = new PVector(9*width/10, height/2);
@@ -91,6 +97,13 @@ void setup(){
   income[1] = startIncome;
   nextSpawnerCost[0] = spawnerBaseCost;
   nextSpawnerCost[1] = spawnerBaseCost;
+  money[0] = startMoney;
+  money[1] = startMoney;
+  mouseOver = 0;
+  selected = 0;
+  AISaveTarget = 0;
+  fadeStart = millis();
+  fading = 1;
   if(cheat) money[0] = 10000;
 }
 
@@ -154,11 +167,39 @@ void draw(){
   drawUI();
   if(random(10) > 9) AI();
   
+  boolean doFade = false;
   if(!teamBaseBuil[0].alive){
     drawResultText(false);
+    if(fading == 0) doFade = true;
   } else if (!teamBaseBuil[1].alive) {
     drawResultText(true);
+    if(fading == 0) doFade = true;
   }
+  if(doFade){
+    fading = 2;
+    fadeStart = millis() + fadeTime;
+  }
+  if(fading != 0) fade();
+}
+
+void fade(){
+  float fadeLevel = max(0, (millis() - fadeStart) / fadeTime);
+  noStroke();
+  boolean restart = false;
+  if(fading == 1){ // fading in
+    fill(0,0,0, 255 - fadeLevel*255);
+    if(fadeLevel >= 1){
+      fading = 0;
+    }
+  } else if(fading == 2){ // fading out
+    fill(0,0,0, fadeLevel*255);
+    if(fadeLevel >= 1){
+      restart = true;
+    }
+  }
+  rectMode(CORNER);
+  rect(0, 0, width, height);
+  if(restart) setup();
 }
 
 // AI basically just buys random stuff at the moment
