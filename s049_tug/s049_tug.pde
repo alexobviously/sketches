@@ -83,8 +83,8 @@ void setup(){
   spawners.add(new ArrayList<Spawner>());
   spawners.get(0).add(new Spawner(0, 1.0));
   spawners.get(1).add(new Spawner(1, 1.0));
-  teamBaseBuil[0] = new Building(0, teamBase[0], 50, 5000, 35, 325, 800, 4);
-  teamBaseBuil[1] = new Building(1, teamBase[1], 50, 5000, 35, 325, 800, 4);
+  teamBaseBuil[0] = new Building(0, teamBase[0], 50, 5000, 55, 325, 800, 4);
+  teamBaseBuil[1] = new Building(1, teamBase[1], 50, 5000, 55, 325, 800, 4);
   buildings.add(teamBaseBuil[0]);
   buildings.add(teamBaseBuil[1]);
   buildings.add(new Building(0, new PVector(teamBase[0].x + 200, height/3), 20, 2500, 10, 180, 125, 2));
@@ -488,7 +488,7 @@ class Sniper extends Unit{
          maxSpeed = 0.8;
          attackDamage = 22;
          attackRange = 175;
-         attackRate = 3500;
+         attackRate = 3900;
          buildingDamageMult = 0.75;
          size = 18;
          hitForce = 2.5;
@@ -506,7 +506,7 @@ class Sniper extends Unit{
 class Shotgun extends Unit{
   Shotgun(int _team, PVector _pos, PVector _target){
          super(_team, _pos, _target);
-         health = maxHealth = 200;
+         health = maxHealth = 210;
          maxSpeed = 1.0;
          attackDamage = 7;
          attackRange = 125;
@@ -648,13 +648,13 @@ class Spawner{
     upOpt.add(new UpgradeOption((uType==unitType.fighter)?50:150, upgradeType.number, (uType==unitType.swarm)?10:1));
   }
   void FighterUpgrades(){
-    upOpt.add(new UpgradeOption(250, unitType.sniper, 1, 15000));
-    upOpt.add(new UpgradeOption(200, unitType.shotgun, 1, 15000));
+    upOpt.add(new UpgradeOption(250, unitType.sniper, 1, 16000));
+    upOpt.add(new UpgradeOption(200, unitType.shotgun, 1, 12000));
     upOpt.add(new UpgradeOption(100, unitType.swarm, 10, 10000));
     upOpt.add(new UpgradeOption(300, unitType.machinegun, 1, 15000));
     upOpt.add(new UpgradeOption(150, unitType.bouncer, 1, 10000));
     upOpt.add(new UpgradeOption(150, unitType.medic, 1, 15000));
-    upOpt.add(new UpgradeOption(300, unitType.bomber, 1, 15000));
+    upOpt.add(new UpgradeOption(300, unitType.bomber, 1, 17000));
   }
   void RemoveFighterUpgrades(){
     ArrayList<UpgradeOption> remove = new ArrayList<UpgradeOption>();
@@ -1083,7 +1083,7 @@ class Building{
   void attack(Unit u){
     Beam b = new Beam(team, pos, u.pos, 10, beamWidth);
     beams.add(b);
-    u.takeDamage(pos, attackDamage, 3.0);
+    u.takeDamage(pos, attackDamage, 2.5);
     attackReady = false;
     lastAttack = millis();
     lastTarget = u;
