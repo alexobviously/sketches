@@ -5,6 +5,7 @@
 boolean boundaries = true;
 boolean demo = false;
 boolean debug = false;
+boolean cheat = false;
 
 color bgc;
 color[] teamColour = new color[2];
@@ -43,6 +44,7 @@ enum unitType{
   machinegun,
   bouncer,
   medic,
+  bomber,
 }
 
 void setup(){
@@ -89,6 +91,7 @@ void setup(){
   income[1] = startIncome;
   nextSpawnerCost[0] = spawnerBaseCost;
   nextSpawnerCost[1] = spawnerBaseCost;
+  if(cheat) money[0] = 10000;
 }
 
 void draw(){
@@ -408,6 +411,9 @@ void newUnits(int team, unitType uType, int num, Building b){
       case medic:
         u = new Medic(team, spawn, target);
         break;
+      case bomber:
+        u = new Bomber(team, spawn, target);
+        break;
     }
     units.get(team).add(u);
   }
@@ -421,6 +427,7 @@ class Fighter extends Unit{
          attackDamage = 10;
          attackRange = 100;
          attackRate = 2000;
+         buildingDamageMult = 1.25;
          size = 10;
          hitForce = 1.25;
          penetrate = false;
@@ -440,6 +447,7 @@ class Sniper extends Unit{
          attackDamage = 22;
          attackRange = 175;
          attackRate = 3500;
+         buildingDamageMult = 0.75;
          size = 18;
          hitForce = 2.5;
          penetrate = true;
@@ -460,7 +468,8 @@ class Shotgun extends Unit{
          maxSpeed = 1.0;
          attackDamage = 7;
          attackRange = 125;
-         attackRate = 3000;
+         attackRate = 2400;
+         buildingDamageMult = 0.75;
          size = 15;
          hitForce = 0.2;
          penetrate = false;
@@ -481,6 +490,7 @@ class Swarm extends Unit{
          attackDamage = 4;
          attackRange = 60;
          attackRate = 200;
+         buildingDamageMult = 0.3;
          size = 3;
          hitForce = 0.2;
          penetrate = false;
@@ -501,6 +511,7 @@ class Machinegun extends Unit{
     attackDamage = 6;
     attackRange = 150;
     attackRate = 50;
+    buildingDamageMult = 0.5;
     size = 25;
     hitForce = 0.05;
     penetrate = false;
@@ -518,11 +529,11 @@ class Bouncer extends Unit{
     super(_team, _pos, _target);
     health = maxHealth = 450;
     maxSpeed = 1.6;
-    attackDamage = 11;
+    attackDamage = 17;
     attackRange = 30;
     attackRate = 1000;
     size = 8;
-    hitForce = 10;
+    hitForce = 12;
     projSize = 1;
     fill = true;
     projSpeed = 5;
@@ -548,6 +559,30 @@ class Medic extends Unit{
     healEffectDecay = 10;
     healEffectThickness = 10;
     bounty = 8;
+  }
+}
+
+class Bomber extends Unit{
+  Bomber(int _team, PVector _pos, PVector _target){
+    super(_team, _pos, _target);
+    health = maxHealth = 140;
+    maxSpeed = 1.3;
+    size = 20;
+    strokeWeight = 5;
+    hasInner = true;
+    innerSize = 6;
+    attackRate = 3500;
+    attackDamage = 45;
+    attackRange = 150;
+    buildingDamageMult = 2.5;
+    hitForce = 6.0;
+    projSize = 6;
+    circleProj = true;
+    explosive = true;
+    explosionRadius = 70;
+    pushResistance = 0.5;
+    projSpeed = 4;
+    bounty = 12;
   }
 }
 
@@ -577,6 +612,7 @@ class Spawner{
     upOpt.add(new UpgradeOption(300, unitType.machinegun, 1, 15000));
     upOpt.add(new UpgradeOption(150, unitType.bouncer, 1, 10000));
     upOpt.add(new UpgradeOption(150, unitType.medic, 1, 15000));
+    upOpt.add(new UpgradeOption(300, unitType.bomber, 1, 15000));
   }
   void RemoveFighterUpgrades(){
     ArrayList<UpgradeOption> remove = new ArrayList<UpgradeOption>();
@@ -606,7 +642,6 @@ class Spawner{
       default:
       case number:
         numUnits += int(up.value);
-        if(uType==unitType.swarm) println("Swarm units "+numUnits);
         break;
       case unit:
           uType = up.uType;
@@ -688,6 +723,10 @@ class Unit{
   float innerSize;
   float bounty = 0;
   boolean alive = true;
+  boolean circleProj = false;
+  boolean explosive = false;
+  float explosionRadius;
+  float buildingDamageMult = 1.0;
   
   Unit(int _team, PVector _pos, PVector _target){
     team = _team; pos = new PVector(_pos.x, _pos.y); target = _target;
@@ -808,7 +847,7 @@ class Unit{
     }
     PVector direction = new PVector(_target.x - pos.x, _target.y - pos.y);
     direction.normalize();
-    Projectile p = new Projectile(team, pos, direction, attackDamage, projSpeed, hitForce, penetrate, projSize);
+    Projectile p = new Projectile(team, pos, direction, attackDamage, projSpeed, hitForce, penetrate, circleProj, projSize, explosive, explosionRadius, buildingDamageMult);
     projectiles.add(p);
     attackReady = false;
     lastAttack = millis();
@@ -870,10 +909,14 @@ class Projectile{
   float size = 5;
   boolean penetrate = false;
   ArrayList<Unit> hitList;
+  boolean circular = false;
+  boolean explosive = false;
+  float explosionRadius;
+  float buildingDamageMult = 1.0;
   
-  Projectile(int _team, PVector _pos, PVector _dir, float _damage, float _speed, float _hitForce, boolean _pen, float _size){
+  Projectile(int _team, PVector _pos, PVector _dir, float _damage, float _speed, float _hitForce, boolean _pen, boolean _circular, float _size, boolean _expl, float _explR, float _builDamMult){
     team = _team; pos = new PVector(_pos.x, _pos.y); dir = _dir; damage = _damage; speed = _speed; size = _size;
-    hitForce = _hitForce; penetrate = _pen;
+    hitForce = _hitForce; penetrate = _pen; circular = _circular; explosive = _expl; explosionRadius = _explR; buildingDamageMult = _builDamMult;
     hitList = new ArrayList<Unit>();
   }
   
@@ -891,7 +934,8 @@ class Projectile{
       if(PVector.dist(pos, u.pos) <= u.size){
         
         if(!penetrate){
-          u.takeDamage(this.pos, damage, hitForce);
+          if(explosive) explode();
+          else u.takeDamage(this.pos, damage, hitForce);
           removeProj.add(this);
           hit = true;
           break;
@@ -906,18 +950,37 @@ class Projectile{
       for(Building b: buildings){
         if(b.team == team) continue;
         if(b.checkCollision(pos)){
-          b.takeDamage(pos, damage);
+          b.takeDamage(pos, damage*buildingDamageMult);
+          if(explosive) explode();
           removeProj.add(this);
         }
       }
     }
   }
   
+  void explode(){
+    for(Unit u: units.get(1-team)){
+      float d = PVector.dist(pos, u.pos);
+      if(d <= explosionRadius){
+        float ratio = d/explosionRadius;
+        u.takeDamage(pos, damage * ratio, hitForce*ratio);
+      }
+    }
+    pulses.add(new Pulse(team, pos, explosionRadius, 15, 25, 15)); // last three are speed, decay, thickness
+  }
+  
   void show(){
-    stroke(teamColour[team]);
-    strokeWeight(2);
-    noFill();
-    line(pos.x, pos.y, pos.x - dir.x*size, pos.y - dir.y*size);
+    if(circular){
+      noStroke();
+      fill(teamColour[team]);
+      ellipse(pos.x, pos.y, size, size);
+    }
+    else{
+      stroke(teamColour[team]);
+      strokeWeight(2);
+      noFill();
+      line(pos.x, pos.y, pos.x - dir.x*size, pos.y - dir.y*size);
+    }
   }
 }
 
@@ -1049,10 +1112,11 @@ class Pulse{
   }
   
   void show(){
+    noFill();
     strokeWeight(1);
     for(int i = 0; i < thickness; i++){
       stroke(teamColour[team], alpha - max(decay,((thickness-i)*(alpha/thickness))));
-      ellipse(pos.x, pos.y, radius+i, radius+i);
+      ellipse(pos.x, pos.y, (radius*2)+i, (radius*2)+i);
     }
   }
 }
