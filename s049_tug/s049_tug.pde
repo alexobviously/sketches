@@ -6,6 +6,7 @@ boolean boundaries = true;
 boolean demo = false;
 boolean debug = false;
 boolean cheat = false;
+boolean showfps = true;
 
 color bgc;
 color[] teamColour = new color[2];
@@ -16,6 +17,7 @@ ArrayList<Unit> removeUnits;
 ArrayList<Building> buildings;
 ArrayList<Building> removeBuildings;
 ArrayList<Projectile> projectiles;
+ArrayList<Projectile> explosives; // separate list so swarms can dodge them
 ArrayList<Projectile> removeProj;
 ArrayList<Beam> beams;
 ArrayList<Beam> removeBeams;
@@ -29,7 +31,7 @@ int spawnerBaseCost = 50;
 float spawnerCostMult = 1.4;
 int mouseOver = 0;
 int selected = 0;
-float incomeTime = 1000;
+float incomeTime = 1000; // all times are in ms - 1000ms = 1 second
 float lastIncome = -10000;
 float startIncome = 5;
 float startMoney = 0;
@@ -39,30 +41,30 @@ float fadeStart = -1;
 float fadeTime = 2500;
 int fading = 0;
 
-enum unitType{
-  none,
-  fighter,
-  sniper,
-  swarm,
-  shotgun,
-  machinegun,
-  bouncer,
-  medic,
-  bomber,
+enum unitType {
+  none, 
+    fighter, 
+    sniper, 
+    swarm, 
+    shotgun, 
+    machinegun, 
+    bouncer, 
+    medic, 
+    bomber,
 }
 
-void setup(){
-  size(1200,500);
+void setup() {
+  size(1200, 500);
   smooth(8);
   colorMode(HSB, TWO_PI, 1, 1);
   bgc = color(50);
   float[] h = new float[2];
   h[0] = random(TWO_PI);
   h[1] = (h[0] + PI) % TWO_PI;
-  for(int i = 0; i < 2; i++){
+  for (int i = 0; i < 2; i++) {
     float s = random(0.7, 1.0);
     float b = 1;
-    teamColour[i] = color(h[i],s,b);
+    teamColour[i] = color(h[i], s, b);
   }
   teamBase[0] = new PVector(width/10, height/2);
   teamBase[1] = new PVector(9*width/10, height/2);
@@ -71,6 +73,7 @@ void setup(){
   units.add(new ArrayList<Unit>());
   removeUnits = new ArrayList<Unit>();
   projectiles = new ArrayList<Projectile>();
+  explosives = new ArrayList<Projectile>();
   removeProj = new ArrayList<Projectile>();
   buildings = new ArrayList<Building>();
   removeBuildings = new ArrayList<Building>();
@@ -91,8 +94,10 @@ void setup(){
   buildings.add(new Building(0, new PVector(teamBase[0].x + 200, 2*height/3), 20, 2500, 10, 180, 125, 2));
   buildings.add(new Building(1, new PVector(teamBase[1].x - 200, height/3), 20, 2500, 10, 180, 125, 2));
   buildings.add(new Building(1, new PVector(teamBase[1].x - 200, 2*height/3), 20, 2500, 10, 180, 125, 2));
-  //buildings.add(new Building(0, new PVector(width/2, height/4), 15, 1500, 10, 180, 100, 2));
-  //buildings.add(new Building(1, new PVector(width/2, 3*height/4), 15, 1500, 10, 180, 100, 2));
+  if (demo) {
+    buildings.add(new Building(0, new PVector(width/2, height/4), 15, 1500, 10, 180, 100, 2));
+    buildings.add(new Building(1, new PVector(width/2, 3*height/4), 15, 1500, 10, 180, 100, 2));
+  }
   income[0] = startIncome;
   income[1] = startIncome;
   nextSpawnerCost[0] = spawnerBaseCost;
@@ -104,195 +109,208 @@ void setup(){
   AISaveTarget = 0;
   fadeStart = millis();
   fading = 1;
-  if(cheat) money[0] = 10000;
+  if (cheat) money[0] = 10000;
+
+  //income[1] = 20;
+  //Spawner _s = new Spawner(1, 1.0);
+  //UpgradeOption uo = _s.upOpt.get(0);
+  //for(UpgradeOption _uo: _s.upOpt){
+  //  if(_uo.uType == unitType.bomber) uo = _uo;
+  //}
+  //_s.upgrade(uo);
+  //spawners.get(1).add(_s);
 }
 
-void draw(){
+void draw() {
   background(bgc);
-  if(demo) demo_spawning();
-  for(ArrayList<Unit> uu: units){
-    for(Unit u: uu){
+  if (demo) demo_spawning();
+  for (ArrayList<Unit> uu : units) {
+    for (Unit u : uu) {
       u.tick();
       u.show();
     }
   }
-  for(Building b: buildings){
+  for (Building b : buildings) {
     b.tick();
     b.show();
   }
-  for(Projectile p: projectiles){
+  for (Projectile p : projectiles) {
     p.tick();
     p.show();
   }
-  for(Beam b: beams){
+  for (Projectile p : explosives) {
+    p.tick();
+    p.show();
+  }
+  for (Beam b : beams) {
     b.tick();
     b.show();
   }
-  for(Pulse p: pulses){
+  for (Pulse p : pulses) {
     p.tick();
     p.show();
   }
-  
-  for(Projectile p: removeProj){
-    projectiles.remove(p);
+
+  for (Projectile p : removeProj) {
+    if (p.explosive) explosives.remove(p);
+    else projectiles.remove(p);
   }
   removeProj.clear();
-  for(Unit u: removeUnits){
+  for (Unit u : removeUnits) {
     units.get(u.team).remove(u);
   }
   removeUnits.clear();
-  for(Building b: removeBuildings){
+  for (Building b : removeBuildings) {
     buildings.remove(b);
   }
   removeBuildings.clear();
-  for(Beam b: removeBeams){
+  for (Beam b : removeBeams) {
     beams.remove(b);
   }
   removeBeams.clear();
-  for(Pulse p: removePulses){
+  for (Pulse p : removePulses) {
     pulses.remove(p);
   }
   removePulses.clear();
-  
-  for(int i = 0; i < 2; i++){
-    if(teamBaseBuil[i].alive){
-      for(Spawner s: spawners.get(i)){
+
+  for (int i = 0; i < 2; i++) {
+    if (teamBaseBuil[i].alive) {
+      for (Spawner s : spawners.get(i)) {
         s.tick();
       }
     }
   }
-  if(!demo){
+  if (!demo) {
     income();
     handleInput();
     drawUI();
-    if(random(10) > 9) AI();
+    if (random(10) > 9) AI();
   }
-  
+  if (showfps) drawFPS();
+
   boolean doFade = false;
-  if(!teamBaseBuil[0].alive){
+  if (!teamBaseBuil[0].alive) {
     drawResultText(false);
-    if(fading == 0) doFade = true;
+    if (fading == 0) doFade = true;
   } else if (!teamBaseBuil[1].alive) {
     drawResultText(true);
-    if(fading == 0) doFade = true;
+    if (fading == 0) doFade = true;
   }
-  if(doFade){
+  if (doFade) {
     fading = 2;
     fadeStart = millis() + fadeTime;
   }
-  if(fading != 0) fade();
+  if (fading != 0) fade();
 }
 
-void fade(){
+void fade() {
   float fadeLevel = max(0, (millis() - fadeStart) / fadeTime);
   noStroke();
   boolean restart = false;
-  if(fading == 1){ // fading in
-    fill(0,0,0, 255 - fadeLevel*255);
-    if(fadeLevel >= 1){
+  if (fading == 1) { // fading in
+    fill(0, 0, 0, 255 - fadeLevel*255);
+    if (fadeLevel >= 1) {
       fading = 0;
     }
-  } else if(fading == 2){ // fading out
-    fill(0,0,0, fadeLevel*255);
-    if(fadeLevel >= 1){
+  } else if (fading == 2) { // fading out
+    fill(0, 0, 0, fadeLevel*255);
+    if (fadeLevel >= 1) {
       restart = true;
     }
   }
   rectMode(CORNER);
   rect(0, 0, width, height);
-  if(restart) setup();
+  if (restart) setup();
 }
 
 // AI basically just buys random stuff at the moment
-void AI(){
-  if(money[1] >= nextSpawnerCost[1]){
-    if(nextSpawnerCost[1] >= AISaveTarget){
-      if(debug) println("AI bought spawner number "+(spawners.get(1).size()+1)+" for "+nextSpawnerCost[1]);
+void AI() {
+  if (money[1] >= nextSpawnerCost[1]) {
+    if (nextSpawnerCost[1] >= AISaveTarget) {
+      if (debug) println("AI bought spawner number "+(spawners.get(1).size()+1)+" for "+nextSpawnerCost[1]);
       newSpawner(1);
       AISaveTarget = 0;
     }
-  } else if(AISaveTarget == 0 && random(1000)>995){
-      AISaveTarget = nextSpawnerCost[1];
-      if(debug) println("AI Save Target set to "+nextSpawnerCost[1]);
+  } else if (AISaveTarget == 0 && random(1000)>995) {
+    AISaveTarget = nextSpawnerCost[1];
+    if (debug) println("AI Save Target set to "+nextSpawnerCost[1]);
   }
-  for(int i = 0; i < spawners.get(1).size(); i++){
+  for (int i = 0; i < spawners.get(1).size(); i++) {
     Spawner sp = spawners.get(1).get(i);
-    if(i < 2 || sp.uType != unitType.fighter)
+    if (i < 2 || sp.uType != unitType.fighter)
     {
-      for(UpgradeOption up: sp.upOpt){
-        if(up.upType == upgradeType.unit) continue;
-        if(money[1] >= up.cost){
-          if(up.cost >= AISaveTarget){
-            if(debug) println("AI bought upgrade "+up.upType+" level "+(up.level+1)+" for "+up.cost);
+      for (UpgradeOption up : sp.upOpt) {
+        if (up.upType == upgradeType.unit) continue;
+        if (money[1] >= up.cost) {
+          if (up.cost >= AISaveTarget) {
+            if (debug) println("AI bought upgrade "+up.upType+" level "+(up.level+1)+" for "+up.cost);
             upgrade(sp, up);
             AISaveTarget = 0;
             i = spawners.get(1).size(); // break out of loop
             break;
           }
-        } else if(AISaveTarget == 0 && random(1000)>995){
+        } else if (AISaveTarget == 0 && random(1000)>995) {
           AISaveTarget = up.cost;
-          if(debug) println("AI Save Target set to "+up.cost);
+          if (debug) println("AI Save Target set to "+up.cost);
         }
       }
-    }else{
-      for(UpgradeOption up: sp.upOpt){
-        if(up.upType != upgradeType.unit) continue;
-        if(money[1] >= up.cost && random(5) > 4){
-          if(up.cost >= AISaveTarget){
-            if(debug) println("AI bought upgrade "+up.upType+" level "+(up.level+1)+" for "+up.cost);
+    } else {
+      for (UpgradeOption up : sp.upOpt) {
+        if (up.upType != upgradeType.unit) continue;
+        if (money[1] >= up.cost && random(5) > 4) {
+          if (up.cost >= AISaveTarget) {
+            if (debug) println("AI bought upgrade "+up.upType+" level "+(up.level+1)+" for "+up.cost);
             upgrade(sp, up);
             AISaveTarget = 0;
             i = spawners.get(1).size();
             break;
           }
-        } else if(AISaveTarget == 0 && random(100)>99){
-            AISaveTarget = up.cost;
-            if(debug) println("AI Save Target set to "+up.cost);
+        } else if (AISaveTarget == 0 && random(100)>99) {
+          AISaveTarget = up.cost;
+          if (debug) println("AI Save Target set to "+up.cost);
         }
       }
     }
   }
 }
 
-void income(){
-  if(millis() - lastIncome >= incomeTime){
+void income() {
+  if (millis() - lastIncome >= incomeTime) {
     money[0] += income[0];
     money[1] += income[1];
     lastIncome = millis();
   }
 }
 
-void handleInput(){
-  if(selected==0){
+void handleInput() {
+  if (selected==0) {
     int numBoxes = spawners.get(0).size() + 1;
-    if(mouseY >= 10 && mouseY <= 60 && mouseX >= 10 && mouseX <= 10 + 50*numBoxes){
+    if (mouseY >= 10 && mouseY <= 60 && mouseX >= 10 && mouseX <= 10 + 50*numBoxes) {
       mouseOver = floor((mouseX - 10) / 50) + 1;
-    }
-    else mouseOver = 0;
-  } else{
+    } else mouseOver = 0;
+  } else {
     int numBoxes = spawners.get(0).get(selected-1).upOpt.size();
     int leftBox = max(0, (selected-1) - floor(numBoxes/2));
-    if(mouseY >= 60 && mouseY <= 110 && mouseX >= 10 + leftBox*50 && mouseX <= 10 + (numBoxes+leftBox)*50){
+    if (mouseY >= 60 && mouseY <= 110 && mouseX >= 10 + leftBox*50 && mouseX <= 10 + (numBoxes+leftBox)*50) {
       mouseOver = floor((mouseX - 10) / 50) + 1 - leftBox;
     } else mouseOver = 0;
   }
 }
 
-void mousePressed(){
-  if(selected==0){
+void mousePressed() {
+  if (selected==0) {
     int numBoxes = spawners.get(0).size() + 1;
-    if(mouseY >= 10 && mouseY <= 60 && mouseX >= 10 && mouseX <= 10 + 50*numBoxes){
+    if (mouseY >= 10 && mouseY <= 60 && mouseX >= 10 && mouseX <= 10 + 50*numBoxes) {
       selected = floor((mouseX - 10) / 50) + 1;
-      if(selected == spawners.get(0).size() + 1){
+      if (selected == spawners.get(0).size() + 1) {
         newSpawner(0);
         selected = 0;
       }
-    }
-    else selected = 0;
-  } else{
+    } else selected = 0;
+  } else {
     int numBoxes = spawners.get(0).get(selected-1).upOpt.size();
     int leftBox = max(0, (selected-1) - floor(numBoxes/2));
-    if(mouseY >= 60 && mouseY <= 110 && mouseX >= 10 + leftBox*50 && mouseX <= 10 + (numBoxes+leftBox)*50){
+    if (mouseY >= 60 && mouseY <= 110 && mouseX >= 10 + leftBox*50 && mouseX <= 10 + (numBoxes+leftBox)*50) {
       int selOpt = floor((mouseX - (leftBox*50 + 10)) / 50);
       upgrade(0, selected-1, selOpt);
     }
@@ -300,8 +318,8 @@ void mousePressed(){
   }
 }
 
-void drawResultText(boolean victory){
-  fill(0,0,0,120);
+void drawResultText(boolean victory) {
+  fill(0, 0, 0, 120);
   rectMode(CENTER);
   noStroke();
   rect(width/2, height/2, width/2, height/2);
@@ -311,20 +329,20 @@ void drawResultText(boolean victory){
   text(victory?"Victory!":"Defeat", width/2, height/2 + 30);
 }
 
-void drawUI(){
+void drawUI() {
   drawUnitCounts();
   drawMoney();
   drawSpawners();
 }
 
-void drawMoney(){
+void drawMoney() {
   textSize(32);
   textAlign(RIGHT, TOP);
   fill(teamColour[0]);
   text(int(money[0]), width-20, 10);
   textSize(10);
   text("+"+int(income[0]), width-5, 2);
-  if(debug){
+  if (debug) {
     textSize(32);
     textAlign(RIGHT, TOP);
     fill(teamColour[1]);
@@ -334,42 +352,48 @@ void drawMoney(){
   }
 }
 
-void drawSpawners(){
+void drawFPS() {
+  textSize(14);
+  textAlign(RIGHT, BOTTOM);
+  fill(0, 0, 0.6);
+  text(frameRate, width - 5, height - 5);
+}
+
+void drawSpawners() {
   rectMode(CORNER);
-  for(int i = 0; i < spawners.get(0).size() + 1; i++){
-    if(mouseOver==i+1 && selected == 0) fill(0,0,0.2);
-    else if(selected==i+1) fill(0,0,0.4);
+  for (int i = 0; i < spawners.get(0).size() + 1; i++) {
+    if (mouseOver==i+1 && selected == 0) fill(0, 0, 0.2);
+    else if (selected==i+1) fill(0, 0, 0.4);
     else noFill();
-    stroke(0,0,.8); // white-ish
+    stroke(0, 0, .8); // white-ish
     strokeWeight(2);
     rect(10 + i*50, 10, 50, 50);
     textAlign(CENTER);
-    fill(0,0,.8);
+    fill(0, 0, .8);
     textSize(10);
     text(i+1, 35 + i *50, 55);
-    if(i < spawners.get(0).size()){
+    if (i < spawners.get(0).size()) {
       Spawner sp = spawners.get(0).get(i);
       text(sp.uType.toString(), 35 + i*50, 40);
-    }
-    else{
+    } else {
       fill(teamColour[0]);
       textSize(16);
       text(nextSpawnerCost[0], 35 + i*50, 40);
     }
   }
-  if(selected != 0) drawOptions(selected);
+  if (selected != 0) drawOptions(selected);
 }
 
-void drawOptions(int spawner){
-  if(spawner < spawners.get(0).size()+1)
+void drawOptions(int spawner) {
+  if (spawner < spawners.get(0).size()+1)
   {
     Spawner sp = spawners.get(0).get(spawner-1);
     int numOpt = sp.upOpt.size();
     int leftBox = max(0, (spawner-1) - floor(numOpt/2));
-    for(int i = leftBox; i < leftBox + numOpt; i++){
-      if(mouseOver==(i-leftBox)+1) fill(0,0,0.2);
+    for (int i = leftBox; i < leftBox + numOpt; i++) {
+      if (mouseOver==(i-leftBox)+1) fill(0, 0, 0.2);
       else noFill();
-      stroke(0,0,.8); // white-ish
+      stroke(0, 0, .8); // white-ish
       strokeWeight(2);
       rect(10 + i*50, 60, 50, 50);
       textAlign(CENTER);
@@ -377,15 +401,15 @@ void drawOptions(int spawner){
       fill(0, 0, 0.8);
       textSize(10);
       String msg = "";
-      switch(opt.upType){
-        default:
-          break;
-        case unit:
-          msg = opt.uType.toString();
-          break;
-        case number:
-          msg = opt.upType.toString();
-          break;
+      switch(opt.upType) {
+      default:
+        break;
+      case unit:
+        msg = opt.uType.toString();
+        break;
+      case number:
+        msg = opt.upType.toString();
+        break;
       }
       text(msg, 35+ i*50, 85);
       fill(teamColour[0]);
@@ -395,16 +419,16 @@ void drawOptions(int spawner){
   }
 }
 
-void drawUnitCounts(){
+void drawUnitCounts() {
   textSize(32);
   fill(teamColour[0]);
   textAlign(RIGHT, BOTTOM);
   text(units.get(0).size(), width/2 - 5, height-5);
-  
+
   fill(teamColour[1]);
   textAlign(LEFT, BOTTOM);
   text(units.get(1).size(), width/2 + 5, height-5);
-  
+
   strokeWeight(1);
   stroke(teamColour[0]);
   line(width/2, height-5, width/2 -40, height-5);
@@ -414,139 +438,144 @@ void drawUnitCounts(){
   line(width/2 -40, height-3, width/2+40, height-3);
 }
 
-void newSpawner(int team){
-  if(money[team] >= nextSpawnerCost[team]){
+void newSpawner(int team) {
+  if (money[team] >= nextSpawnerCost[team]) {
     money[team] -= nextSpawnerCost[team];
     nextSpawnerCost[team] = int(nextSpawnerCost[team]*spawnerCostMult);
     spawners.get(team).add(new Spawner(team, pow(spawnerCostMult, spawners.get(team).size())));
   }
 }
 
-void newUnits(int team, unitType uType, int num, Building b){
+void newUnits(int team, unitType uType, int num, Building b) {
   PVector spawn;
-  if(b == null) spawn = new PVector(teamBase[team].x, teamBase[team].y + random(-50,50));
+  if (b == null) spawn = new PVector(teamBase[team].x, teamBase[team].y + random(-50, 50));
   else spawn = new PVector(b.pos.x, b.pos.y);
-  for(int i = 0; i < num; i++){
+  for (int i = 0; i < num; i++) {
     Unit u;
     PVector target = teamBase[1-team];
-    
-    switch(uType){
-      default:
-      case fighter:
-        u = new Fighter(team, spawn, target);
-        break;
-      case sniper:
-        u = new Sniper(team, spawn, target);
-        break;
-      case swarm:
-        u = new Swarm(team, spawn, target);
-        break;
-      case shotgun:
-        u = new Shotgun(team, spawn, target);
-        break;
-      case machinegun:
-        u = new Machinegun(team, spawn, target);
-        break;
-      case bouncer:
-        u = new Bouncer(team, spawn, target);
-        break;
-      case medic:
-        u = new Medic(team, spawn, target);
-        break;
-      case bomber:
-        u = new Bomber(team, spawn, target);
-        break;
+
+    switch(uType) {
+    default:
+    case fighter:
+      u = new Fighter(team, spawn, target);
+      break;
+    case sniper:
+      u = new Sniper(team, spawn, target);
+      break;
+    case swarm:
+      u = new Swarm(team, spawn, target);
+      break;
+    case shotgun:
+      u = new Shotgun(team, spawn, target);
+      break;
+    case machinegun:
+      u = new Machinegun(team, spawn, target);
+      break;
+    case bouncer:
+      u = new Bouncer(team, spawn, target);
+      break;
+    case medic:
+      u = new Medic(team, spawn, target);
+      break;
+    case bomber:
+      u = new Bomber(team, spawn, target);
+      break;
     }
     units.get(team).add(u);
   }
 }
 
-class Fighter extends Unit{
-  Fighter(int _team, PVector _pos, PVector _target){
-         super(_team, _pos, _target);
-         health = maxHealth = 80;
-         maxSpeed = 1.5;
-         attackDamage = 10;
-         attackRange = 100;
-         attackRate = 2000;
-         buildingDamageMult = 1.25;
-         size = 10;
-         hitForce = 1.25;
-         penetrate = false;
-         projSize = 5;
-         burstCount = 1;
-         spread = 0;
-         fill = false;
-         bounty = 1;
-   }
+class Fighter extends Unit {
+  Fighter(int _team, PVector _pos, PVector _target) {
+    super(_team, _pos, _target);
+    health = maxHealth = 80;
+    maxSpeed = 1.5;
+    attackDamage = 10;
+    attackRange = 100;
+    attackRate = 2000;
+    buildingDamageMult = 1.25;
+    size = 10;
+    hitForce = 1.25;
+    penetrate = false;
+    projSize = 5;
+    burstCount = 1;
+    spread = 0;
+    fill = false;
+    bounty = 1;
+  }
 }
 
-class Sniper extends Unit{
-  Sniper(int _team, PVector _pos, PVector _target){
-         super(_team, _pos, _target);
-         health = maxHealth = 110;
-         maxSpeed = 0.8;
-         attackDamage = 22;
-         attackRange = 175;
-         attackRate = 3900;
-         buildingDamageMult = 0.75;
-         size = 18;
-         hitForce = 2.5;
-         penetrate = true;
-         projSize = 15;
-         burstCount = 1;
-         spread = 0;
-         fill = false;
-         projSpeed = 5;
-         pushResistance = 0.4;
-         bounty = 10;
-   }
+class Sniper extends Unit {
+  Sniper(int _team, PVector _pos, PVector _target) {
+    super(_team, _pos, _target);
+    health = maxHealth = 110;
+    maxSpeed = 0.8;
+    attackDamage = 22;
+    attackRange = 175;
+    attackRate = 3900;
+    buildingDamageMult = 0.75;
+    size = 18;
+    hitForce = 2.5;
+    penetrate = true;
+    projSize = 15;
+    burstCount = 1;
+    spread = 0;
+    fill = false;
+    projSpeed = 5;
+    pushResistance = 0.4;
+    bounty = 10;
+  }
 }
 
-class Shotgun extends Unit{
-  Shotgun(int _team, PVector _pos, PVector _target){
-         super(_team, _pos, _target);
-         health = maxHealth = 210;
-         maxSpeed = 1.0;
-         attackDamage = 7;
-         attackRange = 125;
-         attackRate = 2400;
-         buildingDamageMult = 0.75;
-         size = 15;
-         hitForce = 0.2;
-         penetrate = false;
-         projSize = 1;
-         burstCount = 12;
-         spread = 20;
-         fill = true;
-         projSpeed = 2;
-         bounty = 8;
-   }
+class Shotgun extends Unit {
+  Shotgun(int _team, PVector _pos, PVector _target) {
+    super(_team, _pos, _target);
+    health = maxHealth = 210;
+    maxSpeed = 1.0;
+    attackDamage = 7;
+    attackRange = 125;
+    attackRate = 2400;
+    buildingDamageMult = 0.75;
+    size = 15;
+    hitForce = 0.2;
+    penetrate = false;
+    projSize = 1;
+    burstCount = 12;
+    spread = 20;
+    fill = true;
+    projSpeed = 2;
+    bounty = 8;
+  }
 }
 
-class Swarm extends Unit{
-  Swarm(int _team, PVector _pos, PVector _target){
-         super(_team, _pos, _target);
-         health = maxHealth = 12;
-         maxSpeed = 1.65;
-         attackDamage = 4;
-         attackRange = 60;
-         attackRate = 200;
-         buildingDamageMult = 0.3;
-         size = 3;
-         hitForce = 0.2;
-         penetrate = false;
-         projSize = 2;
-         burstCount = 0;
-         spread = 10;
-         fill = false;
-         strokeWeight = 1;
-         bounty = 0.1;
-   }
+class Swarm extends Unit {
+  Swarm(int _team, PVector _pos, PVector _target) {
+    super(_team, _pos, _target);
+    health = maxHealth = 12;
+    maxSpeed = 1.85;
+    accel = 0.15;
+    attackDamage = 3;
+    attackRange = 60;
+    attackRate = 200;
+    buildingDamageMult = 0.3;
+    size = 3;
+    hitForce = 0.2;
+    penetrate = false;
+    projSize = 2;
+    burstCount = 0;
+    spread = 10;
+    fill = false;
+    strokeWeight = 1;
+    bounty = 0.1;
+    dodgeExplosives = true;
+    dodgeBullets = true;
+    dodgeSpeed = 2.0;
+    dodgeSensitivity = 1.2;
+  }
 }
 
-class Machinegun extends Unit{
-  Machinegun(int _team, PVector _pos, PVector _target){
+class Machinegun extends Unit {
+  Machinegun(int _team, PVector _pos, PVector _target) {
     super(_team, _pos, _target);
     health = maxHealth = 150;
     maxSpeed = 0.6;
@@ -566,8 +595,8 @@ class Machinegun extends Unit{
   }
 }
 
-class Bouncer extends Unit{
-  Bouncer(int _team, PVector _pos, PVector _target){
+class Bouncer extends Unit {
+  Bouncer(int _team, PVector _pos, PVector _target) {
     super(_team, _pos, _target);
     health = maxHealth = 450;
     maxSpeed = 1.6;
@@ -584,8 +613,8 @@ class Bouncer extends Unit{
   }
 }
 
-class Medic extends Unit{
-  Medic(int _team, PVector _pos, PVector _target){
+class Medic extends Unit {
+  Medic(int _team, PVector _pos, PVector _target) {
     super(_team, _pos, _target);
     health = maxHealth = 100;
     maxSpeed = 1.4;
@@ -604,8 +633,8 @@ class Medic extends Unit{
   }
 }
 
-class Bomber extends Unit{
-  Bomber(int _team, PVector _pos, PVector _target){
+class Bomber extends Unit {
+  Bomber(int _team, PVector _pos, PVector _target) {
     super(_team, _pos, _target);
     health = maxHealth = 140;
     maxSpeed = 1.3;
@@ -623,12 +652,12 @@ class Bomber extends Unit{
     explosive = true;
     explosionRadius = 70;
     pushResistance = 0.5;
-    projSpeed = 4;
+    projSpeed = 3; //4
     bounty = 12;
   }
 }
 
-class Spawner{
+class Spawner {
   int team;
   float costMult = 1.0;
   unitType uType = unitType.fighter;
@@ -637,89 +666,90 @@ class Spawner{
   float lastSpawn = -1000;
   boolean canSpawn = false;
   ArrayList<UpgradeOption> upOpt;
-  
-  Spawner(int _team, float _costMult){
-    team = _team; costMult = _costMult;
+
+  Spawner(int _team, float _costMult) {
+    team = _team; 
+    costMult = _costMult;
     upOpt = new ArrayList<UpgradeOption>();
     BasicUpgrades();
     FighterUpgrades();
   }
-  void BasicUpgrades(){
+  void BasicUpgrades() {
     upOpt.add(new UpgradeOption((uType==unitType.fighter)?50:150, upgradeType.number, (uType==unitType.swarm)?10:1));
   }
-  void FighterUpgrades(){
+  void FighterUpgrades() {
     upOpt.add(new UpgradeOption(250, unitType.sniper, 1, 16000));
     upOpt.add(new UpgradeOption(200, unitType.shotgun, 1, 12000));
-    upOpt.add(new UpgradeOption(100, unitType.swarm, 10, 10000));
+    upOpt.add(new UpgradeOption(100, unitType.swarm, 0, 11000));
     upOpt.add(new UpgradeOption(300, unitType.machinegun, 1, 15000));
     upOpt.add(new UpgradeOption(150, unitType.bouncer, 1, 10000));
     upOpt.add(new UpgradeOption(150, unitType.medic, 1, 15000));
     upOpt.add(new UpgradeOption(300, unitType.bomber, 1, 17000));
   }
-  void RemoveFighterUpgrades(){
+  void RemoveFighterUpgrades() {
     ArrayList<UpgradeOption> remove = new ArrayList<UpgradeOption>();
-    for(UpgradeOption opt: upOpt){
-      if(opt.upType == upgradeType.unit) remove.add(opt);
+    for (UpgradeOption opt : upOpt) {
+      if (opt.upType == upgradeType.unit) remove.add(opt);
     }
     upOpt.removeAll(remove);
   }
-  void tick(){
-    if(millis() - lastSpawn >= spawnTime) canSpawn = true;
-    if(canSpawn) spawn(false);
+  void tick() {
+    if (millis() - lastSpawn >= spawnTime) canSpawn = true;
+    if (canSpawn) spawn(false);
   }
-  void spawn(boolean bonus){
+  void spawn(boolean bonus) {
     newUnits(team, uType, numUnits, null);
-    if(!bonus){
+    if (!bonus) {
       canSpawn = false;
       lastSpawn = millis();
     }
   }
-  void upgrade(UpgradeOption up){
-    if(up.upType != upgradeType.unit){
+  void upgrade(UpgradeOption up) {
+    if (up.upType != upgradeType.unit) {
       up.cost = int(up.cost * up.costMultipler);
       up.level++;
-      if(uType == unitType.fighter) RemoveFighterUpgrades();
+      if (uType == unitType.fighter) RemoveFighterUpgrades();
     }
-    switch(up.upType){
-      default:
-      case number:
-        numUnits += int(up.value);
-        break;
-      case unit:
-          uType = up.uType;
-          numUnits = up.numUnits;
-          spawnTime = up.time;
-          upOpt.clear();
-          BasicUpgrades();
-        break;
+    switch(up.upType) {
+    default:
+    case number:
+      numUnits += int(up.value);
+      break;
+    case unit:
+      uType = up.uType;
+      numUnits = up.numUnits;
+      spawnTime = up.time;
+      upOpt.clear();
+      BasicUpgrades();
+      break;
     }
   }
 }
 
-enum upgradeType{
-  none,
-  unit,
-  number,
-  time,
-  damage,
-  range,
+enum upgradeType {
+  none, 
+    unit, 
+    number, 
+    time, 
+    damage, 
+    range,
 }
 
-void upgrade(Spawner sp, UpgradeOption upOpt){
+void upgrade(Spawner sp, UpgradeOption upOpt) {
   int team = sp.team;
-  if(money[team] >= upOpt.cost){
+  if (money[team] >= upOpt.cost) {
     money[team] -= upOpt.cost;
     sp.upgrade(upOpt);
   }
 }
 
-void upgrade(int team, int spawner, int upOpt){
+void upgrade(int team, int spawner, int upOpt) {
   Spawner sp = spawners.get(team).get(spawner);
   UpgradeOption opt = sp.upOpt.get(upOpt);
   upgrade(sp, opt);
 }
 
-class UpgradeOption{
+class UpgradeOption {
   float cost = 1000;
   unitType uType = unitType.none;
   upgradeType upType = upgradeType.none;
@@ -728,18 +758,23 @@ class UpgradeOption{
   float time = 5000.0;
   int level = 0;
   float costMultipler = 1.3;
-  
-  UpgradeOption(float _cost, unitType _uType, int _numUnits, float _time){
-    cost = _cost; uType = _uType; upType = upgradeType.unit; numUnits = _numUnits; time = _time;
+
+  UpgradeOption(float _cost, unitType _uType, int _numUnits, float _time) {
+    cost = _cost; 
+    uType = _uType; 
+    upType = upgradeType.unit; 
+    numUnits = _numUnits; 
+    time = _time;
   }
-  
-  UpgradeOption(float _cost, upgradeType _upType, float _value){
-    cost = _cost; upType = _upType; value = _value;
+
+  UpgradeOption(float _cost, upgradeType _upType, float _value) {
+    cost = _cost; 
+    upType = _upType; 
+    value = _value;
   }
-  
 }
 
-class Unit{
+class Unit {
   int team;
   float health, maxHealth, maxSpeed, size;
   float attackDamage, attackRange, attackRate, hitForce, projSize, burstCount;
@@ -769,164 +804,193 @@ class Unit{
   boolean explosive = false;
   float explosionRadius;
   float buildingDamageMult = 1.0;
-  
-  Unit(int _team, PVector _pos, PVector _target){
-    team = _team; pos = new PVector(_pos.x, _pos.y); target = _target;
+  boolean dodgeExplosives = false;
+  boolean dodgeBullets = false; // experimental
+  float dodgeSpeed = 1.0;
+  float dodgeSensitivity = 1.0;
+
+  Unit(int _team, PVector _pos, PVector _target) {
+    team = _team; 
+    pos = new PVector(_pos.x, _pos.y); 
+    target = _target;
     vel = new PVector();
   }
-  
-  void tick(){
-    if(boundaries){
-      if(pos.x < 0 || pos.x > width) vel.x = -vel.x;
-      if(pos.y < 0 || pos.y > height) vel.y = -vel.y;
+
+  void tick() {
+    if (boundaries) {
+      if (pos.x < 0 || pos.x > width) vel.x = -vel.x;
+      if (pos.y < 0 || pos.y > height) vel.y = -vel.y;
     }
     boolean moving = true;
     Unit attackTarget = null;
     Building attackBuilding = null;
-    if(canAttack){
-      float bestDist = 10000;
-      for(Unit u: units.get(1-team)){
-        float d = PVector.dist(pos, u.pos);
-        if(d <= attackRange){
-          if(d < bestDist){
+    if (canAttack) {
+      float bestDist = Float.POSITIVE_INFINITY;
+      for (Unit u : units.get(1-team)) {
+        float d = sqd(pos, u.pos);
+        if (d <= attackRange * attackRange) {
+          if (d < bestDist) {
             bestDist = d;
             attackTarget = u;
           }
         }
       }
-      for(Building b: buildings){
-        if(b.team == team) continue;
-        float d = PVector.dist(pos, b.pos) - b.size/2;
-        if(d <= attackRange){
-          if(d < bestDist){
+      for (Building b : buildings) {
+        if (b.team == team) continue;
+        float d = sqd(pos, b.pos) - (b.size/2)*(b.size/2);
+        if (d <= attackRange * attackRange) {
+          if (d < bestDist) {
             bestDist = d;
             attackTarget = null;
             attackBuilding = b;
           }
         }
       }
-      if(attackTarget != null || attackBuilding != null || PVector.dist(pos, target) <= attackRange)
+      if (attackTarget != null || attackBuilding != null || PVector.dist(pos, target) <= attackRange)
       {
         moving = false;
       }
     }
     ArrayList<Unit> healUnits = new ArrayList();
-    if(canHeal){
-       for(Unit u: units.get(team)){
-         if(u.canHeal) continue;
-         if(u.health >= u.maxHealth) continue;
-         if(PVector.dist(pos, u.pos) <= healRadius){
-           healUnits.add(u);
-         }
-       }
-       if(healUnits.size() > 0) moving = false;
+    if (canHeal) {
+      for (Unit u : units.get(team)) {
+        if (u.canHeal) continue;
+        if (u.health >= u.maxHealth) continue;
+        if (sqd(pos, u.pos) <= healRadius * healRadius) {
+          healUnits.add(u);
+        }
+      }
+      if (healUnits.size() > 0) moving = false;
     }
-    if(moving){
+    if (moving) {
       speed = min(speed + accel, maxSpeed);
       PVector tVel = new PVector(target.x - pos.x, target.y - pos.y);
       tVel.normalize();
       tVel.mult(speed);
       vel.lerp(tVel, 0.1);
-      
-    }
-    else{
+    } else {
       vel.mult(decel);
       speed = 0;
     }
     //separation
-    for(Unit u: units.get(team)){
-      if(PVector.dist(pos, u.pos) <= size/2 + u.size/2){
+    for (Unit u : units.get(team)) {
+      float spacesq = (size/2 + u.size/2) * (size/2 + u.size/2);
+      if (sqd(pos, u.pos) <= spacesq) {
         PVector away = new PVector(pos.x - u.pos.x, pos.y - u.pos.y);
         away.normalize();
         pos.add(away);
       }
     }
-    
+
+    //projectile avoidance
+    if (dodgeExplosives) {
+      for (Projectile p : explosives) {
+        if (p.team == team) continue;
+        if (sqd(pos, p.pos) <= p.explosionRadius * p.explosionRadius * dodgeSensitivity * dodgeSensitivity) {
+          PVector away = new PVector(pos.x - p.pos.x, pos.y - p.pos.y);
+          away.normalize();
+          away.mult(dodgeSpeed);
+          pos.add(away);
+        }
+      }
+    }
+    if (dodgeBullets) {
+      for (Projectile p : projectiles) {
+        if (p.team == team) continue;
+        if (sqd(pos, p.pos) <= (2*size) * (2*size) * dodgeSensitivity * dodgeSensitivity) {
+          PVector away = new PVector(pos.x - p.pos.x, pos.y - p.pos.y);
+          away.normalize();
+          away.mult(dodgeSpeed);
+          pos.add(away);
+        }
+      }
+    }
+
     pos.add(vel);
-    
-    if(burstRemaining > 0){
+
+    if (burstRemaining > 0) {
       attack(lastTarget, true);
     }
-    
-    if(!attackReady){
-      if(millis() - lastAttack >= attackRate){
+
+    if (!attackReady) {
+      if (millis() - lastAttack >= attackRate) {
         attackReady = true;
       }
     }
-    
-    if(healUnits.size() > 0 && attackReady){
+
+    if (healUnits.size() > 0 && attackReady) {
       heal(healUnits);
     }
-    
-    if(attackTarget != null && attackReady){
+
+    if (attackTarget != null && attackReady) {
       attack(attackTarget.pos, false);
     }
-    
-    if(attackBuilding != null && attackReady){
+
+    if (attackBuilding != null && attackReady) {
       attack(attackBuilding.pos, false);
     }
   }
-  
-  void heal(ArrayList<Unit> healUnits){
-    for(Unit u: healUnits){
-        u.health = min(u.health + healAmount, u.maxHealth);
+
+  void heal(ArrayList<Unit> healUnits) {
+    for (Unit u : healUnits) {
+      u.health = min(u.health + healAmount, u.maxHealth);
     }
     attackReady = false;
     lastAttack = millis();
     Pulse p = new Pulse(team, pos, healRadius, healEffectSpeed, healEffectDecay, healEffectThickness);
     pulses.add(p);
   }
-  
-  void attack(PVector target, boolean burst){
+
+  void attack(PVector target, boolean burst) {
     PVector _target = new PVector(target.x, target.y);
-    if(!burst && burstCount > 0){
+    if (!burst && burstCount > 0) {
       lastTarget = new PVector(target.x, target.y);
       burstRemaining = burstCount;
     }
-    if(spread > 0){
+    if (spread > 0) {
       PVector s = new PVector(random(-spread/2, spread/2), random(-spread/2, spread/2));
       _target.add(s);
     }
     PVector direction = new PVector(_target.x - pos.x, _target.y - pos.y);
     direction.normalize();
     Projectile p = new Projectile(team, pos, direction, attackDamage, projSpeed, hitForce, penetrate, circleProj, projSize, explosive, explosionRadius, buildingDamageMult);
-    projectiles.add(p);
+    if (explosive) explosives.add(p);
+    else projectiles.add(p);
     attackReady = false;
     lastAttack = millis();
-    if(burstCount > 0){
+    if (burstCount > 0) {
       burstRemaining--;
-      if(instantBurst && burstRemaining > 0) attack(target, true);
+      if (instantBurst && burstRemaining > 0) attack(target, true);
     }
   }
-  
-  void takeDamage(PVector impact, float damage, float forceMag){
+
+  void takeDamage(PVector impact, float damage, float forceMag) {
     health -= damage;
-    if(health <= 0 && alive) die();
-    if(pushResistance > 0) forceMag -= pushResistance;
-    if(forceMag > 0){
+    if (health <= 0 && alive) die();
+    if (pushResistance > 0) forceMag -= pushResistance;
+    if (forceMag > 0) {
       PVector force = new PVector(pos.x - impact.x, pos.y - impact.y);
       force.setMag(forceMag);
       vel.add(force);
     }
   }
-  
-  void die(){
-    if(bounty > 0) money[1-team] += bounty;
+
+  void die() {
+    if (bounty > 0) money[1-team] += bounty;
     alive = false;
     removeUnits.add(this);
   }
-  
-  void show(){
-    
-    if(fill){
+
+  void show() {
+
+    if (fill) {
       noStroke();
       fill(teamColour[team], (health/maxHealth)*200 + 50);
-    }
-    else{
+    } else {
       stroke(teamColour[team], (health/maxHealth)*200 + 50);
       strokeWeight(strokeWeight);
       noFill();
-      if(hasCross){
+      if (hasCross) {
         line(pos.x-size/2 + strokeWeight, pos.y, pos.x - strokeWeight, pos.y);
         line(pos.x + strokeWeight, pos.y, pos.x+size/2 - strokeWeight, pos.y);
         line(pos.x, pos.y-size/2 + strokeWeight, pos.x, pos.y - strokeWeight);
@@ -936,15 +1000,15 @@ class Unit{
       }
     }
     ellipse(pos.x, pos.y, size, size);
-    if(hasInner){
-        noStroke();
-        fill(teamColour[team], (health/maxHealth)*200 + 50);
-        ellipse(pos.x, pos.y, innerSize, innerSize);
-      }
+    if (hasInner) {
+      noStroke();
+      fill(teamColour[team], (health/maxHealth)*200 + 50);
+      ellipse(pos.x, pos.y, innerSize, innerSize);
+    }
   }
 }
 
-class Projectile{
+class Projectile {
   int team;
   PVector pos, dir;
   float speed, damage, hitForce;
@@ -955,69 +1019,75 @@ class Projectile{
   boolean explosive = false;
   float explosionRadius;
   float buildingDamageMult = 1.0;
-  
-  Projectile(int _team, PVector _pos, PVector _dir, float _damage, float _speed, float _hitForce, boolean _pen, boolean _circular, float _size, boolean _expl, float _explR, float _builDamMult){
-    team = _team; pos = new PVector(_pos.x, _pos.y); dir = _dir; damage = _damage; speed = _speed; size = _size;
-    hitForce = _hitForce; penetrate = _pen; circular = _circular; explosive = _expl; explosionRadius = _explR; buildingDamageMult = _builDamMult;
+
+  Projectile(int _team, PVector _pos, PVector _dir, float _damage, float _speed, float _hitForce, boolean _pen, boolean _circular, float _size, boolean _expl, float _explR, float _builDamMult) {
+    team = _team; 
+    pos = new PVector(_pos.x, _pos.y); 
+    dir = _dir; 
+    damage = _damage; 
+    speed = _speed; 
+    size = _size;
+    hitForce = _hitForce; 
+    penetrate = _pen; 
+    circular = _circular; 
+    explosive = _expl; 
+    explosionRadius = _explR; 
+    buildingDamageMult = _builDamMult;
     hitList = new ArrayList<Unit>();
   }
-  
-  void tick(){
+
+  void tick() {
     pos.x += dir.x * speed;
     pos.y += dir.y * speed;
-    
-    if(boundaries){
-      if(pos.x < 0 || pos.x > width || pos.y < 0 || pos.y > height) removeProj.add(this);
-    }
-    
+
+    if (pos.x < 0 || pos.x > width || pos.y < 0 || pos.y > height) removeProj.add(this);
+
     boolean hit = false;
-    
-    for(Unit u: units.get(1-team)){
-      if(PVector.dist(pos, u.pos) <= u.size){
-        
-        if(!penetrate){
-          if(explosive) explode();
+
+    for (Unit u : units.get(1-team)) {
+      if (sqd(pos, u.pos) <= u.size * u.size) {
+
+        if (!penetrate) {
+          if (explosive) explode();
           else u.takeDamage(this.pos, damage, hitForce);
           removeProj.add(this);
           hit = true;
           break;
-        }
-        else{
-          if(!hitList.contains(u)) u.takeDamage(this.pos, damage, hitForce);
+        } else {
+          if (!hitList.contains(u)) u.takeDamage(this.pos, damage, hitForce);
           hitList.add(u);
         }
       }
     }
-    if(!hit){
-      for(Building b: buildings){
-        if(b.team == team) continue;
-        if(b.checkCollision(pos)){
+    if (!hit) {
+      for (Building b : buildings) {
+        if (b.team == team) continue;
+        if (b.checkCollision(pos)) {
           b.takeDamage(pos, damage*buildingDamageMult);
-          if(explosive) explode();
+          if (explosive) explode();
           removeProj.add(this);
         }
       }
     }
   }
-  
-  void explode(){
-    for(Unit u: units.get(1-team)){
-      float d = PVector.dist(pos, u.pos);
-      if(d <= explosionRadius){
+
+  void explode() {
+    for (Unit u : units.get(1-team)) {
+      float d = sqd(pos, u.pos);
+      if (d <= explosionRadius * explosionRadius) {
         float ratio = d/explosionRadius;
         u.takeDamage(pos, damage * ratio, hitForce*ratio);
       }
     }
     pulses.add(new Pulse(team, pos, explosionRadius, 15, 25, 15)); // last three are speed, decay, thickness
   }
-  
-  void show(){
-    if(circular){
+
+  void show() {
+    if (circular) {
       noStroke();
       fill(teamColour[team]);
       ellipse(pos.x, pos.y, size, size);
-    }
-    else{
+    } else {
       stroke(teamColour[team]);
       strokeWeight(2);
       noFill();
@@ -1026,7 +1096,7 @@ class Projectile{
   }
 }
 
-class Building{
+class Building {
   int team;
   PVector pos;
   float health, maxHealth, attackDamage, attackRange, attackRate;
@@ -1035,52 +1105,58 @@ class Building{
   float size, beamWidth;
   boolean alive = true;
   Unit lastTarget;
-  
-  Building(int _team, PVector _pos, float _size, float _health, float _aDamage, float _aRange, float _aRate, float _beamWidth){
-    team = _team; pos = new PVector(_pos.x, _pos.y); size = _size; health = maxHealth = _health;
-    attackDamage = _aDamage; attackRange = _aRange; attackRate = _aRate; beamWidth = _beamWidth;
+
+  Building(int _team, PVector _pos, float _size, float _health, float _aDamage, float _aRange, float _aRate, float _beamWidth) {
+    team = _team; 
+    pos = new PVector(_pos.x, _pos.y); 
+    size = _size; 
+    health = maxHealth = _health;
+    attackDamage = _aDamage; 
+    attackRange = _aRange; 
+    attackRate = _aRate; 
+    beamWidth = _beamWidth;
   }
-  
-  void tick(){
+
+  void tick() {
     Unit attackTarget = null;
-    if(lastTarget != null){
-      if(lastTarget.health > 0 && PVector.dist(pos, lastTarget.pos) <= attackRange){
+    if (lastTarget != null) {
+      if (lastTarget.health > 0 && sqd(pos, lastTarget.pos) <= attackRange * attackRange) {
         attackTarget = lastTarget;
       }
     }
-    if(attackTarget == null){
-      float bestDist = 10000;
-      for(Unit u: units.get(1-team)){
-        float d = PVector.dist(pos, u.pos);
-        if(d <= attackRange){
-          if(d < bestDist){
+    if (attackTarget == null) {
+      float bestDist = Float.POSITIVE_INFINITY;
+      for (Unit u : units.get(1-team)) {
+        float d = sqd(pos, u.pos);
+        if (d <= attackRange * attackRange) {
+          if (d < bestDist) {
             bestDist = d;
             attackTarget = u;
           }
         }
       }
     }
-    
-    if(!attackReady){
-      if(millis() - lastAttack >= attackRate){
+
+    if (!attackReady) {
+      if (millis() - lastAttack >= attackRate) {
         attackReady = true;
       }
     }
-    
-    if(attackTarget != null && attackReady){
+
+    if (attackTarget != null && attackReady) {
       attack(attackTarget);
     }
   }
-  
-  void show(){
+
+  void show() {
     rectMode(CENTER);
     stroke(teamColour[team], (health/maxHealth)*200 + 50);
     strokeWeight(4);
     noFill();
     rect(pos.x, pos.y, size, size);
   }
-  
-  void attack(Unit u){
+
+  void attack(Unit u) {
     Beam b = new Beam(team, pos, u.pos, 10, beamWidth);
     beams.add(b);
     u.takeDamage(pos, attackDamage, 2.5);
@@ -1088,13 +1164,13 @@ class Building{
     lastAttack = millis();
     lastTarget = u;
   }
-  
-  void takeDamage(PVector impact, float damage){
+
+  void takeDamage(PVector impact, float damage) {
     health -= damage;
-    if(health <= 0 && alive) die();
+    if (health <= 0 && alive) die();
   }
-  
-  void die(){
+
+  void die() {
     alive = false;
     newUnits(team, unitType.fighter, 15, this);
     newUnits(team, unitType.shotgun, 5, this);
@@ -1103,38 +1179,42 @@ class Building{
     newUnits(team, unitType.swarm, 50, this);
     removeBuildings.add(this);
   }
-  
-  boolean checkCollision(PVector other){
-    if(other.x >= pos.x - size/2 && other.x <= pos.x + size/2 && other.y >= pos.y - size/2 && other.y <= pos.y + size/2) return true;
+
+  boolean checkCollision(PVector other) {
+    if (other.x >= pos.x - size/2 && other.x <= pos.x + size/2 && other.y >= pos.y - size/2 && other.y <= pos.y + size/2) return true;
     else return false;
   }
 }
 
-class Beam{
+class Beam {
   int team;
   PVector start, end;
   float alpha = 255;
   float decay = 10;
   float weight = 2;
-  
-  Beam(int _team, PVector _start, PVector _end, float _decay, float _weight){
-    team = _team; start = new PVector(_start.x, _start.y); end = new PVector(_end.x, _end.y); decay = _decay; weight = _weight;
+
+  Beam(int _team, PVector _start, PVector _end, float _decay, float _weight) {
+    team = _team; 
+    start = new PVector(_start.x, _start.y); 
+    end = new PVector(_end.x, _end.y); 
+    decay = _decay; 
+    weight = _weight;
     alpha = 255;
   }
-  
-  void tick(){
+
+  void tick() {
     alpha -= decay;
-    if(alpha<=0) removeBeams.add(this);
+    if (alpha<=0) removeBeams.add(this);
   }
-  
-  void show(){
+
+  void show() {
     stroke(teamColour[team], alpha);
     strokeWeight(weight);
     line(start.x, start.y, end.x, end.y);
   }
 }
 
-class Pulse{
+class Pulse {
   int team;
   PVector pos;
   float radius, endRadius;
@@ -1142,77 +1222,90 @@ class Pulse{
   float alpha = 255;
   float decay = 5;
   float thickness = 5;
-  
-  Pulse(int _team, PVector _pos, float _radius, float _speed, float _decay, float _thickness){
-    team = _team; pos = new PVector(_pos.x, _pos.y); endRadius = _radius; speed = _speed; radius = 1; decay = _decay; thickness = _thickness;
+
+  Pulse(int _team, PVector _pos, float _radius, float _speed, float _decay, float _thickness) {
+    team = _team; 
+    pos = new PVector(_pos.x, _pos.y); 
+    endRadius = _radius; 
+    speed = _speed; 
+    radius = 1; 
+    decay = _decay; 
+    thickness = _thickness;
   }
-  
-  void tick(){
+
+  void tick() {
     alpha -= decay;
     radius += speed;
-    if(alpha <= 0 || radius >= endRadius) removePulses.add(this);
+    if (alpha <= 0 || radius >= endRadius) removePulses.add(this);
   }
-  
-  void show(){
+
+  void show() {
     noFill();
     strokeWeight(1);
-    for(int i = 0; i < thickness; i++){
-      stroke(teamColour[team], alpha - max(decay,((thickness-i)*(alpha/thickness))));
+    for (int i = 0; i < thickness; i++) {
+      stroke(teamColour[team], alpha - max(decay, ((thickness-i)*(alpha/thickness))));
       ellipse(pos.x, pos.y, (radius*2)+i, (radius*2)+i);
     }
   }
 }
 
-void demo_spawning(){
-  if(teamBaseBuil[0].health > 0){
-    if(random(100) > 99){
+// comparing square distances is faster than using dist
+float sqd(PVector a, PVector b) {
+  float dx = a.x - b.x;
+  float dy = a.y - b.y;
+  return dx*dx + dy*dy;
+}
+
+void demo_spawning() {
+  if (teamBaseBuil[0].health > 0) {
+    if (random(100) > 99) {
       newUnits(0, unitType.fighter, 4, null);
     }
-    if(random(1000) > 998){
+    if (random(1000) > 998) {
       newUnits(0, unitType.sniper, 1, null);
     }
-    if(random(1000) > 999){
+    if (random(1000) > 999) {
       newUnits(0, unitType.swarm, 30, null);
     }
-    if(random(1000) > 999){
+    if (random(1000) > 999) {
       newUnits(0, unitType.shotgun, 1, null);
     }
-    if(random(10000) > 9995){
+    if (random(10000) > 9995) {
       newUnits(0, unitType.machinegun, 1, null);
     }
-    if(random(1000) > 998){
+    if (random(1000) > 998) {
       newUnits(0, unitType.bouncer, 1, null);
     }
-    if(random(1000) > 999){
+    if (random(1000) > 999) {
       newUnits(0, unitType.medic, 1, null);
     }
-    if(random(10000) > 9995){
+    if (random(10000) > 9995) {
       newUnits(0, unitType.bomber, 1, null);
     }
   }
-  if(teamBaseBuil[1].health > 0){
-    if(random(100) > 99){
+  if (teamBaseBuil[1].health > 0) {
+    if (random(100) > 99) {
       newUnits(1, unitType.fighter, 4, null);
     }
-    if(random(1000) > 999){
+    if (random(1000) > 999) {
       newUnits(1, unitType.sniper, 1, null);
     }
-    if(random(1000) > 998){
+    if (random(1000) > 998) {
       newUnits(1, unitType.swarm, 30, null);
     }
-    if(random(1000) > 998){
+    if (random(1000) > 998) {
       newUnits(1, unitType.shotgun, 1, null);
     }
-    if(random(10000) > 9995){
+    if (random(10000) > 9995) {
       newUnits(1, unitType.machinegun, 1, null);
     }
-    if(random(1000) > 998){
+    if (random(1000) > 998) {
       newUnits(1, unitType.bouncer, 1, null);
     }
-    if(random(1000) > 999){
+    if (random(1000) > 999) {
       newUnits(1, unitType.medic, 1, null);
     }
-    if(random(10000) > 9995){
+    if (random(10000) > 9995) {
       newUnits(0, unitType.bomber, 1, null);
     }
   }
