@@ -1073,8 +1073,8 @@ class Projectile {
 
   void explode() {
     for (Unit u : units.get(1-team)) {
-      float d = sqd(pos, u.pos);
-      if (d <= explosionRadius * explosionRadius) {
+      float d = PVector.dist(pos, u.pos);
+      if (d <= explosionRadius) {
         float ratio = d/explosionRadius;
         u.takeDamage(pos, damage * ratio, hitForce*ratio);
       }
