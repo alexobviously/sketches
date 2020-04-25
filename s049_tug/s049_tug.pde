@@ -3,10 +3,10 @@
 // dailygenerative.art.blog
 
 boolean boundaries = true;
-boolean demo = false;
+boolean demo = true;
 boolean debug = false;
 boolean cheat = false;
-boolean showfps = true;
+boolean showfps = false;
 
 color bgc;
 color[] teamColour = new color[2];
@@ -510,6 +510,7 @@ class Sniper extends Unit {
     super(_team, _pos, _target);
     health = maxHealth = 110;
     maxSpeed = 0.8;
+    accel = 0.075;
     attackDamage = 22;
     attackRange = 175;
     attackRate = 3900;
@@ -579,6 +580,7 @@ class Machinegun extends Unit {
     super(_team, _pos, _target);
     health = maxHealth = 150;
     maxSpeed = 0.6;
+    accel = 0.05;
     attackDamage = 6;
     attackRange = 150;
     attackRate = 50;
@@ -600,6 +602,8 @@ class Bouncer extends Unit {
     super(_team, _pos, _target);
     health = maxHealth = 450;
     maxSpeed = 1.6;
+    accel = 1.25;
+    decel = 0.96;
     attackDamage = 17;
     attackRange = 30;
     attackRate = 1000;
@@ -618,6 +622,8 @@ class Medic extends Unit {
     super(_team, _pos, _target);
     health = maxHealth = 100;
     maxSpeed = 1.4;
+    accel = 0.9;
+    decel = 0.95;
     canAttack = false;
     canHeal = true;
     healRadius = 100;
@@ -638,6 +644,8 @@ class Bomber extends Unit {
     super(_team, _pos, _target);
     health = maxHealth = 140;
     maxSpeed = 1.3;
+    accel = 0.7;
+    decel = 0.92;
     size = 20;
     strokeWeight = 5;
     hasInner = true;
@@ -1313,8 +1321,8 @@ void demo_spawning() {
 
 void keyPressed()
 {
-  if (keyCode==32) { // space
-    String fn = "pair-"+hour()+"-"+minute()+"-"+second()+".png";
+  if (keyCode==32 && (debug||demo)) { // space
+    String fn = "tug-"+hour()+"-"+minute()+"-"+second()+".png";
     saveFrame(fn);
     println("Saved image "+fn);
   }
